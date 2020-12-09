@@ -133,12 +133,18 @@ getFuncs ((FnDef pos typ iden args _):rest) funcs is_main =
             then (funcs, Just $ "Multiple declaration of function " 
                 ++ getName iden ++ " in line " ++ (getLineNumber pos))
         else (
-            if ((getName iden) == "main" || is_main == True) 
-                then (getFuncs rest (M.insert iden func_typ funcs) True)   -- tu sprawdzic, czy ma typ int
-            else (getFuncs rest (M.insert iden func_typ funcs) False)
+            if ((getName iden) == "main") 
+                then (
+                    case typ of
+                        (Int _) -> (getFuncs rest (M.insert iden func_typ funcs) True)
+                        _ -> (funcs, Just $ "Invalid type of main function in line " 
+                            ++ getLineNumber pos ++ ": main must be of int type")
+                )
+            else (getFuncs rest (M.insert iden func_typ funcs) is_main)
     )
 
 
+-- Function adds library functions to functions' environment.
 addLibFuncs :: FunStore -> FunStore
 addLibFuncs funs = 
     let lib_funs = libFuns in
