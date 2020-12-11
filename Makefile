@@ -1,5 +1,5 @@
 all:
-		cabal new-build
+		stack build
 
 clean:
-		cabal new-clean
+		stack clean --full

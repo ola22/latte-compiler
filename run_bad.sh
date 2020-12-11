@@ -3,6 +3,6 @@
 for f in $(find tests/bad/ -name '*.lat')
 do
 	echo $f
-    cabal new-exec latc $f
+    stack exec latc $f
 done
 

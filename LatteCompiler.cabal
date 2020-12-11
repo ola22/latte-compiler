@@ -35,7 +35,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 
-executable latec
+executable latc
   -- .hs or .lhs file containing the Main module.
   main-is:             Compiler.hs
 
@@ -47,6 +47,7 @@ executable latec
                        Latte.Parsing.PrintLatte
                        Latte.Parsing.SkelLatte
                        Common.ErrorPositions
+                       Common.Common
                        SemanticChecker
 
   -- LANGUAGE extensions used by modules in this package.
