@@ -29,6 +29,59 @@ getTypeName (Void _) = "void"
 getTypeName (Fun _ _ _) = "function"
 
 
+-- If given expression is not function application
+-- and is not variable function returns its type, 
+-- otherwise it returns Nothing.
+getType :: Expr ErrorPos -> Maybe (Type ErrorPos)
+getType (EVar _ _) = Nothing
+getType (ELitInt pos _) = Just (Int pos)
+getType (ELitTrue pos) = Just (Bool pos)
+getType (ELitFalse pos) = Just (Bool pos)
+getType (EApp _ _ _) = Nothing
+getType (EString pos _) = Just (Str pos)
+getType (Neg pos _) = Just (Int pos)
+getType (Not pos _) = Just (Bool pos)
+getType (EMul pos _ _ _) = Just (Int pos)
+getType (EAnd pos _ _) = Just (Bool pos)
+getType (EOr pos _ _) = Just (Bool pos)
+getType (EAdd pos e1 op e2) = 
+    case op of 
+        Minus _ -> Just (Int pos)
+        Plus _ -> 
+            let typ = getType e1 
+            in case typ of
+                Just t -> Just t
+                Nothing ->
+                    let typ2 = getType e2 
+                    in case typ2 of
+                        Just t -> Just t
+                        Nothing -> Nothing
+getType (ERel pos e1 op e2) = 
+    case op of
+        LTH _ -> Just (Int pos)
+        LE _ -> Just (Int pos)
+        GTH _ -> Just (Int pos)
+        GE _ -> Just (Int pos)
+        EQU _ ->
+            let typ = getType e1 
+            in case typ of
+                Just t -> Just t
+                Nothing ->
+                    let typ2 = getType e2 
+                    in case typ2 of
+                        Just t -> Just t
+                        Nothing -> Nothing
+        NE _ ->
+            let typ = getType e1 
+            in case typ of
+                Just t -> Just t
+                Nothing ->
+                    let typ2 = getType e2 
+                    in case typ2 of
+                        Just t -> Just t
+                        Nothing -> Nothing
+
+
 -- Function checks if given two types are the same.
 typesEquals :: Type ErrorPos -> Type ErrorPos -> Bool
 typesEquals (Int _) (Int _) = True
