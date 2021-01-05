@@ -11,6 +11,7 @@ import Latte.Parsing.AbsLatte
 import Latte.Parsing.ErrM
 import Common.ErrorPositions
 import SemanticChecker
+import IRCreator
 import Compiler
 
 
@@ -36,7 +37,7 @@ parseFile p _ prog_s =
                     Nothing -> do
                         hPutStrLn stderr ("OK\n")
                         return ()
-                        (blocks, strStore) <- compileProgram tree
+                        (blocks, strStore) <- getIRRepresentation tree
                         return ()
                         -- here compiling
                     Just err -> do
