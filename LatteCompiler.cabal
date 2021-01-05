@@ -49,6 +49,7 @@ executable latc
                        Common.ErrorPositions
                        Common.Common
                        SemanticChecker
+                       IRCreator
                        Compiler
 
   -- LANGUAGE extensions used by modules in this package.

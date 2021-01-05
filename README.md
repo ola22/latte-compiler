@@ -36,8 +36,9 @@ src/ zwiera pliki źródłowe projektu
     Common/
         `Common.hs` - plik z powszechnie używanymi funkcjami pomocniczymi
         `ErrorPositions.hs` - zawiera funkcje służace do wydobywania pozycji elementów AST w pliku
-    `Compiler.hs` - plik główny kompilatora
+    `Compiler.hs` - plik z kodem tworzącym kod asemblera
     `SematicChecker.hs` - plik frontendu kompilatora
+    `Main.hs` - plik główny kompilatora
 lib/ zawiera biblioteki
     `runtime.c` - z funkcjami bibliotecznymi w c
 tests/ zawiera dwa katalogi z testami good i bad
