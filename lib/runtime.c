@@ -5,26 +5,26 @@
 
 
 
-extern void printInt(int n) {
-    printf("%d\n", n);
+void printInt_c(int64_t n) {
+    printf("%ld\n", n);
 }
 
 
-extern void printString(const char* str) {
+void printString_c(const char* str) {
     printf("%s\n", str);
 }
 
 
-int readInt() {
+int64_t readInt_c() {
     
     int x;
     scanf("%d\n", &x);
 
-    return x;
+    return (int64_t)x;
 }
 
 
-char* readString() {
+char* readString_c() {
     char* s = (char*)malloc(1);
     size_t len;
 
@@ -37,13 +37,13 @@ char* readString() {
 }
 
 
-void error() {
-    printf("Runtime error");
+void error_c() {
+    printf("Runtime error called by error function\n");
     exit(1);
 }
 
 
-char* addStrings(char* a, char* b) {
+char* strconcat_c(char* a, char* b) {
     size_t len_a, len_b;
     len_a = strlen(a);
     len_b = strlen(b);
@@ -55,3 +55,16 @@ char* addStrings(char* a, char* b) {
 
     return s;
 }
+
+
+int64_t strcmp_c(char* a, char* b)
+{
+    return strcmp(a, b) == 0;
+}
+
+
+int64_t strcmpn_c(char* a, char* b)
+{
+    return strcmp(a, b) != 0;
+}
+
