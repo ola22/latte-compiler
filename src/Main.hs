@@ -2,6 +2,8 @@
 
 module Main where
 
+import System.FilePath.Posix
+import System.Process
 import System.Environment ( getArgs )
 import System.Exit ( exitFailure )
 import System.IO
@@ -25,21 +27,29 @@ getFile p f = readFile f >>= parseFile p f
 -- Function parses given program, then checks if there are
 -- any compilation errors and finally starts compilation
 parseFile :: ParseType (Program ErrorPos) -> FilePath -> String -> IO()
-parseFile p _ prog_s = 
+parseFile p f prog_s = 
     let ts = myLexer prog_s in 
         case p ts of
             Bad err -> do 
                 hPutStrLn stderr ("ERROR\nParsing failed: " ++ err ++ "\n")
                 exitFailure
             Ok tree -> do 
+                -- static semantic check
                 res <- checkProgram tree
                 case res of
                     Nothing -> do
                         hPutStrLn stderr ("OK\n")
                         return ()
+                        -- generating IR representation
                         (blocks, strStore) <- getIRRepresentation tree
+                        let outfile = dropExtension f ++ ".s"
+                        -- generating assembly code
+                        startCompilation blocks strStore outfile
+                        callCommand $ "nasm -g -f elf64 " ++ outfile
+                        callCommand $ "gcc " ++ dropExtension f ++ ".o" 
+                            ++ " lib/runtime.o lib/runtime_helper.o -o " 
+                            ++ dropExtension f
                         return ()
-                        -- here compiling
                     Just err -> do
                         hPutStrLn stderr ("ERROR\n" ++ err ++ "\n")
                         exitFailure

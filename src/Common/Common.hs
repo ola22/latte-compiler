@@ -88,27 +88,6 @@ getType (ERel pos e1 op e2) =
                         Nothing -> Nothing
 
 
-
-
-
--- Function returns inner expression of given expression
--- "inner" meaning literal, variable or function application
-{-getInnerExpr :: Expr ErrorPos -> Expr ErrorPos
-getInnerExpr (EVar _ _) = Nothing
-getInnerExpr (ELitInt pos _) = Just (Int pos)
-getInnerExpr (ELitTrue pos) = Just (Bool pos)
-getInnerExpr (ELitFalse pos) = Just (Bool pos)
-getInnerExpr (EApp _ _ _) = Nothing
-getInnerExpr (EString pos _) = Just (Str pos)
-getInnerExpr (Neg pos _) = Just (Int pos)
-getInnerExpr (Not pos _) = Just (Bool pos)
-getInnerExpr (EMul pos _ _ _) = Just (Int pos)
-getInnerExpr (EAnd pos _ _) = Just (Bool pos)
-getInnerExpr (EOr _ _ _) = Just (Bool pos)
-getInnerExpr (EAdd _ e1 _ _) = getInnerExpr e1
-getInnerExpr (ERel _ e1 _ _) = getInnerExpr e1-}
-
-
 -- Function checks if given two types are the same.
 typesEquals :: Type ErrorPos -> Type ErrorPos -> Bool
 typesEquals (Int _) (Int _) = True

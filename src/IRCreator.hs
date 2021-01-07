@@ -76,7 +76,8 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 
 -- TODO: 
 -- consty, żeby sie odrazu wyliczały
--- te reversy, czy ja to wgl dobrze sklejam :()
+ -- TODO to wywalic do jednej funkcji te relval czy cos
+ -- polaczyc generateDeclIrElems
 
 
 -- Function returns type of given expression
@@ -91,12 +92,10 @@ getExprType e funcs vars = do
                 (EVar _ iden) -> do
                     case M.lookup (getName iden) vars of
                         Nothing -> undefined
-                            --throwError "undeclared variable" -- debug, niegdy nie powinno mieć miejsca
                         Just (_, _, var_type) -> var_type
                 (EApp _ iden _) -> do
                     case M.lookup iden funcs of
                         Nothing -> undefined
-                            --throwError "undeclared function" -- debug, niegdy nie powinno mieć miejsca
                         Just func_type -> func_type
                 _ -> undefined
 
@@ -118,7 +117,7 @@ addVarToEnv iden typ = do
         -- variable with this name already exists
         -- we change the name of new value
         Just (_, n, _) -> do
-            let new_n = "newn" ++ v_n ++ show n
+            let new_n = ".newn" ++ v_n ++ show n
             let vars' = M.insert v_n (new_n, n+1, typ) vars
             put (str, ir, b, funcs, vars')
             return ()
@@ -127,16 +126,11 @@ addVarToEnv iden typ = do
 --Function adds function's arguments from givem list
 -- to variables' environment and renames them as arg1,...
 -- data Arg a = Arg a (Type a) Ident
-addArgsToEnv :: Integer -> [Arg ErrorPos] -> IRStore ()
-addArgsToEnv _ [] = return ()
-addArgsToEnv n ((Arg _ typ iden):rest) = do
-    (str, ir, b, funcs, vars) <- get
-    -- we know, that vars environment is empty rigth now
-    let v_n = getName iden
-    let new_n = "arg" ++ show n
-    let vars' = M.insert v_n (new_n, 1, typ) vars
-    put (str, ir, b, funcs, vars')
-    addArgsToEnv (n+1) rest
+addArgsToEnv :: [Arg ErrorPos] -> IRStore ()
+addArgsToEnv [] = return ()
+addArgsToEnv ((Arg _ typ iden):rest) = do
+    addVarToEnv iden typ
+    addArgsToEnv rest
 
 
 -- Function returns current name of given variable
@@ -148,7 +142,7 @@ getCurVarName iden = do
     case M.lookup v_n vars of
         -- variable should always be declared
         -- after semantic check
-        Nothing -> throwError "undeclared variable" -- debug, niegdy nie powinno mieć miejsca
+        Nothing -> undefined
         -- getting current variable name
         Just (cur_n, _, _) -> return (cur_n)
 
@@ -208,12 +202,11 @@ generateRelIRElems :: Expr ErrorPos -> IRStore (IRReg)
 generateRelIRElems (ERel _ e1 op e2) = do
     e1_reg <- generateExprIRElems e1
     e2_reg <- generateExprIRElems e2
-    -- tutsj chyba, że jak dwa consty to const -> nie no, tu juz chyba nie
     (s, (elems, n), b, funcs, vars) <- get
     let res_reg = Reg n
     case op of
         EQU _ -> do
-            let typ = getExprType e1 funcs vars                              -- TODO to wywalic do jednej funkcji
+            let typ = getExprType e1 funcs vars
             case typ of
                 Int _ -> do
                     let new_el = IROp res_reg IREQU e1_reg e2_reg
@@ -224,7 +217,7 @@ generateRelIRElems (ERel _ e1 op e2) = do
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
                     return (res_reg)
                 Str _ -> do
-                    let new_el = IRCall res_reg "strcmp" [e1_reg, e2_reg] 
+                    let new_el = IRCall res_reg "_strcmp" [e1_reg, e2_reg] 
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
                     return (res_reg)
                 _ -> undefined
@@ -240,7 +233,7 @@ generateRelIRElems (ERel _ e1 op e2) = do
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
                     return (res_reg)
                 Str _ -> do
-                    let new_el = IRCall res_reg "strcmpn" [e1_reg, e2_reg] 
+                    let new_el = IRCall res_reg "_strcmpn" [e1_reg, e2_reg] 
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
                     return (res_reg)
                 _ -> undefined
@@ -249,6 +242,25 @@ generateRelIRElems (ERel _ e1 op e2) = do
             put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
             return (res_reg)
 generateRelIRElems _ = undefined
+
+
+-- Function computes expression, that consists of constant
+-- values only.
+optimizeConstOp :: IRReg -> IRReg -> IROp -> Maybe (IRReg)
+optimizeConstOp r1 r2 op = 
+    case r1 of 
+        (Const x) -> 
+            case r2 of 
+                (Const y) -> 
+                    case op of
+                        IRAdd -> Just $ Const (x+y)
+                        IRSub -> Just $ Const (x-y)
+                        IRTimes -> Just $ Const (x*y)
+                        IRDiv -> Just $ Const (x `div` y)
+                        IRMod -> Just $ Const (x `mod` y)
+                        _ -> undefined
+                _ -> Nothing
+        _ -> Nothing
 
 
 -- Function creates and adds to environment all
@@ -268,66 +280,79 @@ generateExprIRElems (ELitFalse _) = return (Const 0)
 generateExprIRElems (EString _ s) = do
     reg <- getStrIRReg s
     return (reg)
-generateExprIRElems (EApp _ iden exprs) = do       -- nie jestem pewna,cz y sama logika tego jest ok :/
+generateExprIRElems (EApp _ iden exprs) = do
     args_regs <- getArgsRegsAndIRElems exprs
     (s, (elems, n), b, funcs, vars) <- get
     let res_reg = Reg n
-    v_n <- getCurVarName iden
-    let el = IRCall res_reg v_n args_regs
+    let el = IRCall res_reg ("_" ++ (getName iden)) args_regs
     put (s, (elems ++ [el], n+1), b, funcs, vars)
     return (res_reg)
-generateExprIRElems (Neg _ e) = do  -- do Integerow
+generateExprIRElems (Neg _ e) = do -- ints
     e_reg <- generateExprIRElems e
     (s, (elems, n), b, funcs, vars) <- get
     let res_reg = Reg n
     let new_el = IROp res_reg IRSub (Const 0) e_reg
     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
     return (res_reg)
-generateExprIRElems (Not _ e) = do  -- do booli
+generateExprIRElems (Not _ e) = do -- bools
     e_reg <- generateExprIRElems e
     (s, (elems, n), b, funcs, vars) <- get
     let res_reg = Reg n
     let new_el = IROp res_reg IRSub (Const 1) e_reg
     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
     return (res_reg)
-generateExprIRElems (EMul _ e1 op e2) = do            -- TODO , ZE JAK DWA CONSTY TO CONST A NIE JEAKIES GOWNO
+generateExprIRElems (EMul _ e1 op e2) = do
     e1_reg <- generateExprIRElems e1
     e2_reg <- generateExprIRElems e2
-    -- tutsj chyba, że jak dwa consty to const
-    (s, (elems, n), b, funcs, vars) <- get
-    let res_reg = Reg n
-    let new_el = IROp res_reg (getMulIROp op) e1_reg e2_reg
-    put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
-    return (res_reg)
-generateExprIRElems (EAdd _ e1 op e2) = do          -- TODO , ZE JAK DWA CONSTY TO CONST A NIE JEAKIES GOWNO
-    e1_reg <- generateExprIRElems e1
-    e2_reg <- generateExprIRElems e2
-    -- tutsj chyba, że jak dwa consty to const
-    (s, (elems, n), b, funcs, vars) <- get
-    let res_reg = Reg n
-    case op of
-        Minus _ -> do
-            let new_el = IROp res_reg IRSub e1_reg e2_reg
+
+    -- optimizing, when both constat values
+    let r = optimizeConstOp e1_reg e2_reg (getMulIROp op)
+    case r of
+        Just c_r -> return (c_r)
+        Nothing -> do 
+            (s, (elems, n), b, funcs, vars) <- get
+            let res_reg = Reg n
+            let new_el = IROp res_reg (getMulIROp op) e1_reg e2_reg
             put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
             return (res_reg)
-        Plus _ -> do
-            let typ = getExprType e1 funcs vars
-            case typ of
-                Int _ -> do
-                    let new_el = IROp res_reg IRAdd e1_reg e2_reg
+generateExprIRElems (EAdd _ e1 op e2) = do
+    e1_reg <- generateExprIRElems e1
+    e2_reg <- generateExprIRElems e2
+
+    -- optimizing, when both constat values
+    let r = optimizeConstOp e1_reg e2_reg (getAddIROp op)
+    case r of
+        Just c_r -> return (c_r)
+        Nothing -> do
+            (s, (elems, n), b, funcs, vars) <- get
+            let res_reg = Reg n
+            case op of
+                Minus _ -> do
+                    let new_el = IROp res_reg IRSub e1_reg e2_reg
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
                     return (res_reg)
-                _ -> do
-                    let new_el = IRCall res_reg "strconcat" [e1_reg, e2_reg] 
-                    put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
-                    return (res_reg)
+                Plus _ -> do
+                    let typ = getExprType e1 funcs vars
+                    case typ of
+                        Int _ -> do
+                            let new_el = IROp res_reg IRAdd e1_reg e2_reg
+                            put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
+                            return (res_reg)
+                        _ -> do
+                            let new_el = IRCall res_reg "_strconcat" [e1_reg, e2_reg] 
+                            put (s, (elems ++ [new_el], n + 1), b, funcs, vars)
+                            return (res_reg)
 generateExprIRElems (ERel pos e1 op e2) = 
     generateRelIRElems (ERel pos e1 op e2)
 generateExprIRElems (EAnd _ e1 e2) = do
     -- creating new IR blocks for making AND
+    -- we need a new block here due to lazy evaluation
+    -- l - lebel for second expression
+    -- l+1 - lebel when first epr was false
+    -- l+2 - end lebel (with next instructions)
     e1_reg <- generateExprIRElems e1
     (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
-    let name_reg = Reg n                                                                         -- TODO O CO TU CHODZI
+    let name_reg = Reg n
     let res_reg = Reg (n + 1)
     let b1 = (lebel1, elems, 
             CondL e1_reg ("lebel" ++ show l) ("lebel" ++ show (l+1)))
@@ -339,16 +364,15 @@ generateExprIRElems (EAnd _ e1 e2) = do
     (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
     let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
             L ("lebel" ++ show (l+2)))
-    put (s', ([], n'), (blocks' ++ [b3], l', 
+    put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
         L ("lebel" ++ show (l+2))), funcs', vars')
     return (res_reg)
-    --secondcondlebel l
-    -- konownfalse l+1
-    -- endlabel l+2
-    -- varregister
-    -- res_reg
 generateExprIRElems (EOr _ e1 e2) = do
     -- creating new IR blocks for making OR
+    -- we need a new block here due to lazy evaluation
+    -- l - lebel for second expression
+    -- l+1 - lebel when first epr was true
+    -- l+2 - end lebel (with next instructions)
     e1_reg <- generateExprIRElems e1
     (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
     let name_reg = Reg n
@@ -363,20 +387,14 @@ generateExprIRElems (EOr _ e1 e2) = do
     (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
     let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
             L ("lebel" ++ show (l+2)))
-    put (s', ([], n'), (blocks' ++ [b3], l', 
+    put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
         L ("lebel" ++ show (l+2))), funcs', vars')
     return (res_reg)
-    --secondcondlebel l
-    -- konowntrue l+1
-    -- endlabel l+2
-    -- varregister
-    -- res_reg
 
 
 ------------------------------------------------- GENERATING IR FOR STATEMENTS -------------------------------------------------------------------
 
 
--- TODO połaćzyć ta i ta niżej koniecznie, bo sa bez sensu
 -- Function genrates all necassary IR elements for given list
 -- of items
 generateDeclIRElems :: Type ErrorPos -> [Item ErrorPos] -> IRStore ()
@@ -390,13 +408,13 @@ generateDeclIRElems typ (el:rest) = do
             (s, (elems , n), b, funcs, vars) <- get
             put (s, (elems ++ [el'], n), b, funcs, vars)
         Init _ iden e -> do
+            e_reg <- generateExprIRElems e
             addVarToEnv iden typ
             v_n <- getCurVarName iden
-            e_reg <- generateExprIRElems e
             let el' = IRVarToReg (VarReg v_n) e_reg
             (s, (elems , n), b, funcs, vars) <- get
             put (s, (elems ++ [el'], n), b, funcs, vars)
-    generateDeclIRElems typ rest                                         -- CZY TO SIE NAPEWNO WYWOLA?????????????????
+    generateDeclIRElems typ rest
 
 
 -- Function genrates all necassary IR elements for given list
@@ -408,14 +426,14 @@ generateDeclIRElemsForStr (el:rest) = do
         NoInit _ iden -> do
             addVarToEnv iden (Str Nothing)
             v_n <- getCurVarName iden
-            str_reg <- getStrIRReg ""
+            str_reg <- getStrIRReg ['"', '"']
             let el' = IRVarToReg (VarReg v_n) str_reg
             (s, (elems , n), b, f, v) <- get
             put (s, (elems ++ [el'], n), b, f, v)
         Init _ iden e -> do
+            e_reg <- generateExprIRElems e
             addVarToEnv iden (Str Nothing)
             v_n <- getCurVarName iden
-            e_reg <- generateExprIRElems e
             let el' = IRVarToReg (VarReg v_n) e_reg
             (s, (elems , n), b, f, v) <- get
             put (s, (elems ++ [el'], n), b, f, v)
@@ -445,12 +463,11 @@ generateStmtIRElems (BStmt _ (Block _ stmts)) = do
     -- starting new IR block for block of stmts
     generateBlockIRElems stmts
     (s', (elems', n'), (blocks', l', lebel1'), funcs', _) <- get
-    let b2 = (lebel1', elems', L ("lebel" ++ show l'))      -- nie mam pojęcia jka to zrobić :< czy tu nazw nie pozmieniac
+    let b2 = (lebel1', elems', L ("lebel" ++ show l'))
     -- restoring old variables env after exiting inner block
     put (s', ([], n'), (blocks' ++ [b2], l' + 1, 
         L ("lebel" ++ show l')), funcs', vars)
     return ()
-    -- nextlebel' = l'
 generateStmtIRElems (Decl _ typ items) = 
     case typ of
         Str _ -> generateDeclIRElemsForStr items
@@ -459,7 +476,7 @@ generateStmtIRElems (Ass _ iden e) = do
     e_reg <- generateExprIRElems e
     (s, (elems, n), b, funcs, vars) <- get
     v_n <- getCurVarName iden
-    let new_el = IRVarToReg (VarReg v_n) e_reg            -- czy tu wgl moga takie byc?????????
+    let new_el = IRVarToReg (VarReg v_n) e_reg
     put (s, (elems ++ [new_el], n), b, funcs, vars)
     return ()
 generateStmtIRElems (Incr _ iden) = do
@@ -494,6 +511,9 @@ generateStmtIRElems (VRet _) = do
         L ("lebel" ++ show l)), funcs, vars)
     return ()
 generateStmtIRElems (CondElse _ e stmt1 stmt2) = do
+    -- l - lebel for then instructions
+    -- l+1 - lebel for else instructions
+    -- l+2 - end lebel (with next instructions)
     -- generating block with if condition
     e_reg <- generateExprIRElems e
     (s, (elems, n), (blocks, l, lebel1), f, v) <- get
@@ -516,10 +536,9 @@ generateStmtIRElems (CondElse _ e stmt1 stmt2) = do
     put (s'', ([], n''), (blocks'' ++ [b3], l'', 
         L ("lebel" ++ show (l + 2))), f'', v'')
     return ()
-    -- then lebel l
-    -- elselebel l+1
-    --endlebel l+2
 generateStmtIRElems (Cond _ e stmt) = do
+    -- l - lebel for then instructions
+    -- l+1 - end lebel (with next instructions)
     -- generating block with if condition
     e_reg <- generateExprIRElems e
     (s, (elems, n), (blocks, l, lebel1), f, v) <- get
@@ -534,10 +553,11 @@ generateStmtIRElems (Cond _ e stmt) = do
             L ("lebel" ++ show (l+1)))
     put (s', ([], n'), (blocks' ++ [b2], l', 
         L ("lebel" ++ show (l + 1))), f', v')
-    -- then lebel l
-    -- endlebel - l+1
     return ()
 generateStmtIRElems (While _ e stmt) =  do
+    -- l - label for while body
+    -- l+1 - label for while condition
+    -- l+2 - end lebel (with next instructions)
     -- genereting block with condition and IR elems gen so far
     (s, (elems, n), (blocks, l, lebel1), f, v) <- get
     let b1 = (lebel1, elems,
@@ -558,48 +578,56 @@ generateStmtIRElems (While _ e stmt) =  do
     put (s'', ([], n''), (blocks'' ++ [b3], l'', 
         L ("lebel" ++ show (l + 2))), f'', v'')
     return ()
-    -- bodylabel l
-    -- condlabel l+1
-    -- endlabel l+2
 generateStmtIRElems (SExp _ e) = do
     _ <- generateExprIRElems e
     return ()
 
+-- Function returns a list containing function arguments'
+-- identificators
+getArgsIdents :: [Arg ErrorPos] -> [Ident]
+getArgsIdents [] = []
+getArgsIdents ((Arg _ _ iden):rest) = 
+    [iden] ++ (getArgsIdents rest)
+
 
 -- Function creates IR blocks for given function
-getBlocksFunDef :: TopDef ErrorPos -> IRStore ()
+getBlocksFunDef :: TopDef ErrorPos -> IRStore ([Ident], [IRBlock])
 getBlocksFunDef (FnDef _ _ iden args (Block _ stmts)) = do
     -- adding label name with function's name
-    (s, (_, n), (blocks, l, _), funcs, _) <- get
-    put (s, ([], n), (blocks, l, L (getName iden)), funcs, M.empty)
-    addArgsToEnv 0 args
+    (s, (_, n), (_, l, _), funcs, _) <- get
+    put (s, ([], n), ([], l, L ("_" ++ (getName iden))), funcs, M.empty)
+    --addArgsToEnv 0 args
+    addArgsToEnv args
     -- generating blocks
     generateBlockIRElems stmts
     -- adding final lebel
     (s', (elems', n'), (blocks', l', l1'), funcs', vars) <- get
     let b = (l1', elems', VRetL)
     put (s', ([], n'), (blocks' ++ [b], l' + 1, L ("lebel" ++ show l')), funcs', vars)
+    let args_idents = getArgsIdents args
+    return (args_idents, blocks' ++ [b])
 
 
 -- Function runs creating IR representation for each proggram's element.
 -- It returns list of IR blocks and map constaining strings' locations
-getIRBlocks :: [TopDef ErrorPos] -> IRStore ([IRBlock], StringStore)
-getIRBlocks [] = do
-    (s, _, (blocks, _, _), _, _) <- get
+getIRBlocks :: [TopDef ErrorPos] -> [([Ident],[IRBlock])] 
+                -> IRStore ([([Ident],[IRBlock])], StringStore)
+getIRBlocks [] blocks = do
+    (s, _, (_, _, _), _, _) <- get
     return (blocks, s)
-getIRBlocks (el:rest) = do
-    getBlocksFunDef el
-    getIRBlocks rest
+getIRBlocks (el:rest) blocks = do
+    b <- getBlocksFunDef el
+    getIRBlocks rest (blocks ++ [b])
 
 
 -- Function starts creating IR representation in StateT monad
-getIRRepresentation ::  Program ErrorPos -> IO ([IRBlock], StringStore)
+getIRRepresentation ::  Program ErrorPos -> IO ([([Ident],[IRBlock])], StringStore)
 getIRRepresentation (Program _ prog) = do
     let funcs_types = getFunctionsTypes M.empty prog
-    res <- runExceptT (runStateT (getIRBlocks prog) 
+    res <- runExceptT (runStateT (getIRBlocks prog []) 
                 (M.empty, ([], 0), ([], 1, L "lebel0"), funcs_types, M.empty))
     case res of
-        Left _ -> return ([], M.empty)
+        Left err -> return ([], M.insert err (StrLoc 1) M.empty)
         Right ((blocks, strStore),_) ->
             return (blocks, strStore)
 
