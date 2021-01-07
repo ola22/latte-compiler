@@ -35,7 +35,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 
-executable latc
+executable latc_x86_64
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
 
