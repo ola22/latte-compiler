@@ -28,6 +28,8 @@ data IROp =
     IRLTH | IRLE | IRGTH | IRGE | IREQU | IRNE
     deriving Show
 
+data BoolOp = AndOp | OrOp deriving Show
+
 -- Elements of "code" used for creating IR
 data IRElem = 
     IROp IRReg IROp IRReg IRReg | -- arithmetic op (res_reg, op, reg1, reg2)
@@ -76,11 +78,13 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 
 
 -- TODO: 
--- consty, żeby sie odrazu wyliczały
- -- TODO to wywalic do jednej funkcji te relval czy cos
- -- polaczyc generateDeclIrElems
+    -- consty, żeby sie odrazu wyliczały
+    -- TODO to wywalic do jednej funkcji te relval czy cos
+    -- polaczyc generateDeclIrElems
     -- po co robic jumpa jak leca pokolei!!!!!!!!!!!!!!!!!!!!!!!!! -> czy wgl jest lepeij jak takie puste niewiadomo, co?? :<
     -- moze wywalic te bez snsu labely VRet na koncu -> nie mozna!!!!!!!!!!!!
+    -- optimize const booli
+-- optimize const rel op jak sa dwa consty tez
 
  {-
  jak wyrazenie ktore jest boolem
@@ -279,6 +283,37 @@ optimizeConstOp r1 r2 op =
         _ -> Nothing
 
 
+-- Helper function for optimatizating function.
+getBoolReg :: String -> Integer -> Integer -> Maybe (IRReg)
+getBoolReg op x y = 
+    if (((op == "or") && (x == 1 || y == 1)) ||
+        ((op == "and") && (x == 1 && y == 1))) then
+        Just $ Const 1
+    else Just $ Const 0
+
+
+-- Function optimizes two const boolean expressions.
+optimizeConstBoolOp :: IRReg -> IRReg -> String -> Maybe (IRReg)
+optimizeConstBoolOp r1 r2 op = 
+    case r1 of
+        (Const x) -> 
+            case r2 of 
+                (Const y) -> getBoolReg op x y
+                _ -> Nothing
+        _ -> Nothing
+
+
+{-
+generateBoolExprIRElems :: Expr ErrorPos -> Label -> Label -> IRStore ()
+generateBoolExprIRElems e l1 l2 = return ()
+generateBoolExprIRElems (EVar _ iden) l1 l2 = return () -- TODO?????
+generateBoolExprIRElems (ELitInt _ x) _ _ = undefined
+generateBoolExprIRElems (ELitTrue _) l1 l2 = return () -- TODO?????
+generateBoolExprIRElems (ELitFalse _) _ _ = return ()   -- TODO?????
+generateBoolExprIRElems (EString _ s) _ _ = undefined
+-}
+
+
 -- if, while, deklaracja boola, a przypisanie juz nie
 -- Function creates and adds to environment all
 -- IR elements and blocks created for IR representation
@@ -362,51 +397,67 @@ generateExprIRElems (EAdd _ e1 op e2) = do
 generateExprIRElems (ERel pos e1 op e2) = 
     generateRelIRElems (ERel pos e1 op e2)
 generateExprIRElems (EAnd _ e1 e2) = do
-    -- creating new IR blocks for making AND
-    -- we need a new block here due to lazy evaluation
-    -- l - lebel for second expression
-    -- l+1 - lebel when first epr was false
-    -- l+2 - end lebel (with next instructions)
-    e1_reg <- generateExprIRElems e1
-    (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
-    let name_reg = Reg n
-    let res_reg = Reg (n + 1)
-    let b1 = (lebel1, elems, 
-            CondL e1_reg ("lebel" ++ show l) ("lebel" ++ show (l+1)))
-    let b2 = (L ("lebel" ++ show (l+1)), 
-            [IRVarToReg name_reg (Const 0)], L ("lebel" ++ show (l+2)))
-    put (s, ([], n+2), (blocks ++ [b1] ++ [b2], l + 3, 
-        L ("lebel" ++ show l)), funcs, vars)
-    e2_reg <- generateExprIRElems e2
-    (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
-    let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
-            NoJump)
-    put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
-        L ("lebel" ++ show (l+2))), funcs', vars')
-    return (res_reg)
+    (str, e, b, f, v) <- get
+    e1_r <- generateExprIRElems e1
+    e2_r <- generateExprIRElems e2
+    let r = optimizeConstBoolOp e1_r e2_r "and"
+    put (str, e, b, f, v)
+    case r of
+        Just c_r -> return c_r
+        Nothing -> do
+            -- creating new IR blocks for making AND
+            -- we need a new block here due to lazy evaluation
+            -- l - lebel for second expression
+            -- l+1 - lebel when first epr was false
+            -- l+2 - end lebel (with next instructions)
+            e1_reg <- generateExprIRElems e1
+            (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
+            let name_reg = Reg n
+            let res_reg = Reg (n + 1)
+            let b1 = (lebel1, elems, 
+                    CondL e1_reg ("lebel" ++ show l) ("lebel" ++ show (l+1)))
+            let b2 = (L ("lebel" ++ show (l+1)), 
+                    [IRVarToReg name_reg (Const 0)], L ("lebel" ++ show (l+2)))
+            put (s, ([], n+2), (blocks ++ [b1] ++ [b2], l + 3, 
+                L ("lebel" ++ show l)), funcs, vars)
+            e2_reg <- generateExprIRElems e2
+            (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
+            let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
+                    NoJump)
+            put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
+                L ("lebel" ++ show (l+2))), funcs', vars')
+            return (res_reg)
 generateExprIRElems (EOr _ e1 e2) = do
-    -- creating new IR blocks for making OR
-    -- we need a new block here due to lazy evaluation
-    -- l - lebel for second expression
-    -- l+1 - lebel when first epr was true
-    -- l+2 - end lebel (with next instructions)
-    e1_reg <- generateExprIRElems e1
-    (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
-    let name_reg = Reg n
-    let res_reg = Reg (n + 1)
-    let b1 = (lebel1, elems, 
-            CondL e1_reg ("lebel" ++ show (l+1)) ("lebel" ++ show l))
-    let b2 = (L ("lebel" ++ show (l+1)), 
-            [IRVarToReg name_reg (Const 1)], L ("lebel" ++ show (l+2)))
-    put (s, ([], n+2), (blocks ++ [b1] ++ [b2], l + 3, 
-        L ("lebel" ++ show l)), funcs, vars)
-    e2_reg <- generateExprIRElems e2
-    (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
-    let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
-            NoJump)
-    put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
-        L ("lebel" ++ show (l+2))), funcs', vars')
-    return (res_reg)
+    (str, e, b, f, v) <- get
+    e1_r <- generateExprIRElems e1
+    e2_r <- generateExprIRElems e2
+    let r = optimizeConstBoolOp e1_r e2_r "or"
+    put (str, e, b, f, v)
+    case r of
+        Just c_r -> return c_r
+        Nothing -> do
+            -- creating new IR blocks for making OR
+            -- we need a new block here due to lazy evaluation
+            -- l - lebel for second expression
+            -- l+1 - lebel when first epr was true
+            -- l+2 - end lebel (with next instructions)
+            e1_reg <- generateExprIRElems e1
+            (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
+            let name_reg = Reg n
+            let res_reg = Reg (n + 1)
+            let b1 = (lebel1, elems, 
+                    CondL e1_reg ("lebel" ++ show (l+1)) ("lebel" ++ show l))
+            let b2 = (L ("lebel" ++ show (l+1)), 
+                    [IRVarToReg name_reg (Const 1)], L ("lebel" ++ show (l+2)))
+            put (s, ([], n+2), (blocks ++ [b1] ++ [b2], l + 3, 
+                L ("lebel" ++ show l)), funcs, vars)
+            e2_reg <- generateExprIRElems e2
+            (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
+            let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
+                    NoJump)
+            put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
+                L ("lebel" ++ show (l+2))), funcs', vars')
+            return (res_reg)
 
 
 ------------------------------------------------- GENERATING IR FOR STATEMENTS -------------------------------------------------------------------
