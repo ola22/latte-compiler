@@ -34,6 +34,7 @@ Wersje użytych w tym celu narzędzi
 * Z powodu innego niż w C calling convention w katalogu `lib` znajduje się dodatkowa biblioteka runtime_helper.asm, która przed wywołaniem
   funkcji z C umieszcza argumenty w odpowiednich rejestrach (zgodnie ze standardem C)
 * Int 64bitowy
+* na drugą iterację planuję zrobić używanie rejestrów i optymalizacje.
 
 
 ## Użyte zewnętrzne biblioteki (haskellowe)
