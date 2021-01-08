@@ -29,9 +29,9 @@ _strconcat:
     mov r12, rsp
     ; putting values in to registers 
     ; according to C calling convention
-    lea rdx, [rsp + 16]
+    lea rdx, [rsp + 8]
     mov rdi, [rdx]
-    lea rdx, [rsp + 24]
+    lea rdx, [rsp + 16]
     mov rsi, [rdx]
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000
@@ -40,7 +40,7 @@ _strconcat:
     ; storeing returned value on stack
     ; according to latte calling convention
     mov rsp, r12
-    lea r12, [rsp + 8]
+    lea r12, [rsp + 24]
     mov [r12], rax
     ret
 
@@ -49,9 +49,9 @@ _strcmp:
     mov r12, rsp
     ; putting values in to registers 
     ; according to C calling convention
-    lea rdx, [rsp + 16]
+    lea rdx, [rsp + 8]
     mov rdi, [rdx]
-    lea rdx, [rsp + 24]
+    lea rdx, [rsp + 16]
     mov rsi, [rdx]
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000
@@ -60,7 +60,7 @@ _strcmp:
     ; storeing returned value on stack
     ; according to latte calling convention
     mov rsp, r12
-    lea r12, [rsp + 8]
+    lea r12, [rsp + 24]
     mov [r12], rax
     ret
 
@@ -69,9 +69,9 @@ _strcmpn:
     mov r12, rsp
     ; putting values in to registers 
     ; according to C calling convention
-    lea rdx, [rsp + 16]
+    lea rdx, [rsp + 8]
     mov rdi, [rdx]
-    lea rdx, [rsp + 24]
+    lea rdx, [rsp + 16]
     mov rsi, [rdx]
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000
@@ -80,7 +80,7 @@ _strcmpn:
     mov rsp, r12
     ; storeing returned value on stack
     ; according to latte calling convention
-    lea r12, [rsp + 8]
+    lea r12, [rsp + 24]
     mov [r12], rax
     ret
 
@@ -89,7 +89,7 @@ _printInt:
     mov r12, rsp
     ; putting values in to registers 
     ; according to C calling convention
-    lea rdx, [rsp + 16]
+    lea rdx, [rsp + 8]
     mov rdi, [rdx]
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000
@@ -103,7 +103,7 @@ _printString:
     mov r12, rsp
     ; putting values in to registers 
     ; according to C calling convention
-    lea rdx, [rsp + 16]
+    lea rdx, [rsp + 8]
     mov rdi, [rdx]
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000

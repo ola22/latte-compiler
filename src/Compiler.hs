@@ -13,7 +13,7 @@ import IRCreator
 
 
 type RegEnv = M.Map String String
-type Env = StateT (FilePath, RegEnv) IO
+type Env = StateT (FilePath, RegEnv, Int) IO
 type RegSet = S.Set String
 
 
@@ -168,8 +168,8 @@ getArgsRegisters ((Ident name):rest) = do
 allocateStackToArguments :: Int -> [String] -> Env (Int)
 allocateStackToArguments n [] = return (n)
 allocateStackToArguments n (reg:rest) = do
-    (f, r_m) <- get
-    put (f, M.insert reg (" + " ++ show n) r_m)
+    (f, r_m, off) <- get
+    put (f, M.insert reg (" + " ++ show n) r_m, off)
     allocateStackToArguments (n + 8) rest
 
 
@@ -177,8 +177,8 @@ allocateStackToArguments n (reg:rest) = do
 allocateStackToRegisters :: Int -> [String] -> Env (Int)
 allocateStackToRegisters n [] = return (n)
 allocateStackToRegisters n (reg:rest) = do
-    (f, r_m) <- get
-    put (f, M.insert reg (" - " ++ show n) r_m)
+    (f, r_m, off) <- get
+    put (f, M.insert reg (" - " ++ show n) r_m, off)
     allocateStackToRegisters (n + 8) rest
 
 ------------------------------------------------------- FUNCTIONS FOR GENERATING ASSEMBLER CODE -------------------------------------------------------
@@ -188,7 +188,7 @@ allocateStackToRegisters n (reg:rest) = do
 -- under reg's ir_reg addres
 saveOnRegStackLoc :: String -> String -> Env ()
 saveOnRegStackLoc ir_reg asm_reg = do
-    (f, regs) <- get
+    (f, regs, _) <- get
     case M.lookup ir_reg regs of
         Just offset -> do
             liftIO $ appendFile f $                                        -- TODO TO ZMIENIC NA JAKIES MOVY, JAK TAM
@@ -212,7 +212,7 @@ saveResOnStack (VarReg name) asm_reg =
 -- ir_reg addres to asm_reg
 saveValFromStack :: String -> String -> Env ()
 saveValFromStack ir_reg asm_reg = do
-    (f, regs) <- get
+    (f, regs, _) <- get
     case M.lookup ir_reg regs of
         Just offset -> do
             liftIO $ appendFile f $                                         -- TODO TO ZMIENIC NA JAKIES MOVY, JAK TAM
@@ -225,7 +225,7 @@ saveValFromStack ir_reg asm_reg = do
 -- Function moves value from stack to asm_reg
 saveValInReg :: IRReg -> String -> Env ()
 saveValInReg (Const n) asm_reg = do
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $
         "   mov     " ++ asm_reg 
         ++ ", " ++ show n ++ "\n"
@@ -233,7 +233,7 @@ saveValInReg (Const n) asm_reg = do
 saveValInReg (Reg n) asm_reg = 
     saveValFromStack ("_reg" ++ show n) asm_reg
 saveValInReg (StrLoc n) asm_reg = do
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $
         "   mov     " ++ asm_reg 
         ++ ", " ++ "string" ++ show n ++ "\n"
@@ -247,7 +247,7 @@ saveValInReg (VarReg name) asm_reg =
 putArgsOnStack :: Int -> [IRReg] -> Env ()
 putArgsOnStack _ [] = return ()
 putArgsOnStack offset (reg:rest) = do
-    (f, _) <- get
+    (f, _, _) <- get
     saveValInReg reg "r13"
     liftIO $ appendFile f $
         "   lea     r11, [rsp + " ++ show offset ++ "]\n" ++
@@ -266,7 +266,7 @@ putValsInRightRegs r1 r2 a_r1 a_r2 = do
 -- Function geneartes assembly code for given IR element
 generateIRElemAssembly :: IRElem -> Env ()
 generateIRElemAssembly (IROp res_reg op reg1 reg2) = do
-    (f, _ ) <- get
+    (f, _ , _) <- get
     case op of
         IRDiv -> putValsInRightRegs reg1 reg2 "rax" "rsi"
         IRMod -> putValsInRightRegs reg1 reg2 "rax" "rsi"
@@ -331,17 +331,17 @@ generateIRElemAssembly (IROp res_reg op reg1 reg2) = do
                 "   setne   cl\n"
             saveResOnStack res_reg "rcx"
     return ()
-generateIRElemAssembly (IRCall res_reg f_name args_r) = do
-    (f, _) <- get
+generateIRElemAssembly (IRCall res_reg f_name args_r) = do                       -- TODO DLA CALLA
+    (f, _, _) <- get
     let offset = (length args_r + 1) * 8
     liftIO $ appendFile f $
         "   sub     rsp, " ++ show offset ++ "\n"
 
-    putArgsOnStack 8 args_r
+    putArgsOnStack 0 args_r                          -- TODO
 
     liftIO $ appendFile f $
         "   call    " ++ f_name ++ "\n" ++
-        "   mov     rax, [rsp]\n" ++
+        "   mov     rax, [rsp +" ++ show (offset - 8) ++ "]\n" ++            -- TODO
         "   add     rsp, " ++ show offset ++ "\n"
     saveResOnStack res_reg "rax"  
     return ()
@@ -366,23 +366,24 @@ generateIRElemsAssembly (el:rest) = do
 
 -- Function generates assembly code for given
 -- IR block label.
-generateLabelAssembly :: Label -> Env ()
+generateLabelAssembly :: Label -> Env ()                        -- TODO DLA RETA
 generateLabelAssembly (L lebel) = do
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $ "   jmp     " ++ lebel
 generateLabelAssembly (CondL reg l1 l2) = do
-    (f, _) <- get
+    (f, _, _) <- get
     saveValInReg reg "rax"
     liftIO $ appendFile f $
         "   cmp     rax, 0\n" ++
         "   jne     " ++ l1 ++ "\n" ++                   -- TODO TU ZMIANA :)
         "   jmp   " ++ l2 ++ "\n"
 generateLabelAssembly (RetL reg) = do
-    (f, _) <- get
+    (f, _, off) <- get
     -- we save it in rax due to c standards
     saveValInReg reg "rax" 
     liftIO $ appendFile f $
-        "   lea     rdx, [rbp + 16]\n" ++
+        --"   lea     rdx, [rbp + 16]\n" ++                       -- TODO
+        "   lea     rdx, [rbp + " ++ show off ++ "]\n" ++
         "   mov     [rdx], rax\n" ++
         --"   mov     r10, rbp\n" ++                 -- TODO TO SB POZMIENIALAM
         --"   add     r10, 16\n" ++
@@ -391,7 +392,7 @@ generateLabelAssembly (RetL reg) = do
         "   pop     rbp\n" ++
         "   ret\n"
 generateLabelAssembly (VRetL) = do
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $ 
         "   mov     rsp, rbp\n" ++
         "   pop     rbp\n" ++
@@ -402,7 +403,7 @@ generateLabelAssembly (VRetL) = do
 -- IR block.
 generateBlockAssembly :: IRBlock -> Int -> Bool -> Env ()
 generateBlockAssembly ((L start_l), elems, end_l) offset is_first = do
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $ start_l ++ ":\n"
     if (is_first) then do 
         liftIO $ appendFile f $
@@ -423,7 +424,7 @@ generateBlocksAssembly :: [IRBlock] -> Int -> Bool -> Env ()
 generateBlocksAssembly [] _ _ = return ()
 generateBlocksAssembly (b:rest) offset is_first = do
     generateBlockAssembly b offset is_first
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $ "\n\n"
     generateBlocksAssembly rest offset False
 
@@ -449,14 +450,17 @@ generateFuncAssembly (args, blocks) = do
 
     -- allocating stack for function's arguments
     args_list <- getArgsList args
-    _ <- allocateStackToArguments (8*3) args_list                                  -- może ja dam 8*2 -> że call będzie na samym końcu tak jakby
+    res_off <- allocateStackToArguments (8*2) args_list                                  -- może ja dam 8*2 -> że call będzie na samym końcu tak jakby
 
     -- allocating stack for other IR registers
     last_offset <- allocateStackToRegisters 8 (S.toList regs')
 
+    (file, m, _) <- get
+    put (file, m, res_off)
+
     -- generating actual assembly code
     generateBlocksAssembly blocks last_offset True
-    (f, _) <- get
+    (f, _, _) <- get
     liftIO $ appendFile f $ "\n\n"
     return ()
 
@@ -467,8 +471,8 @@ generateFuncsAssembly :: [([Ident],[IRBlock])] -> Env ()
 generateFuncsAssembly [] = return ()
 generateFuncsAssembly (el:rest) = do
     -- clearing environment for each function's blocks
-    (f, _) <- get
-    put (f, M.empty)
+    (f, _, _) <- get
+    put (f, M.empty, 0)
     generateFuncAssembly el
     generateFuncsAssembly rest
 
@@ -480,7 +484,7 @@ compileBlocks :: [([Ident],[IRBlock])] -> StringStore -> Env ()
 compileBlocks blocks s_env = do
     -- adding to asm file file beginning and data section 
     -- with strings' declarations
-    (outfile, _) <- get
+    (outfile, _, _) <- get
     liftIO $ appendFile outfile $ 
         assemblyBeggining ++ (getSectionData s_env)
     generateFuncsAssembly blocks
@@ -490,6 +494,6 @@ compileBlocks blocks s_env = do
 -- Given args: IR func_blocks, string_env, out_file
 startCompilation :: [([Ident],[IRBlock])] -> StringStore -> String -> IO ()
 startCompilation blocks s_env outfile = do
-  evalStateT (compileBlocks blocks s_env) (outfile, M.empty)
+  evalStateT (compileBlocks blocks s_env) (outfile, M.empty, 0)
   return ()
 
