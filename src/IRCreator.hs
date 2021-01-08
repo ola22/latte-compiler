@@ -39,6 +39,7 @@ data IRElem =
 -- data for storeing labels used in blocks
 data Label = 
     L String | -- block ended by unconditional jump
+    NoJump | -- making no jump (movinf to next label)
     CondL IRReg String String | -- block ended by conditional jump
     RetL IRReg | -- block ended by return
     VRetL -- block ended by void return
@@ -78,9 +79,24 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 -- consty, żeby sie odrazu wyliczały
  -- TODO to wywalic do jednej funkcji te relval czy cos
  -- polaczyc generateDeclIrElems
+    -- po co robic jumpa jak leca pokolei!!!!!!!!!!!!!!!!!!!!!!!!! -> czy wgl jest lepeij jak takie puste niewiadomo, co?? :<
+    -- moze wywalic te bez snsu labely VRet na koncu -> nie mozna!!!!!!!!!!!!
+
+ {-
+ jak wyrazenie ktore jest boolem
+ to chce wygenerowac etykietki gdzie skoczyc jak true, gdzie jak false
+ nie zapisujemy wartosci na stosie -> tylko labelki
+
+ nie mowie daj mi rejestr
+
+ zamist tego przekazuje labelki, gdzie skakac jak true, gdzie jak false
+boole inaczej bedziemy robic
+dla kompilowania booli robimy inaczej
+
+ -}
 
 
--- Function returns type of given expression
+-- Function returns type of given expression 
 getExprType :: Expr ErrorPos -> FuncTypMap -> VarEnv -> Type ErrorPos
 getExprType e funcs vars = do
     let typ = getType e
@@ -263,6 +279,7 @@ optimizeConstOp r1 r2 op =
         _ -> Nothing
 
 
+-- if, while, deklaracja boola, a przypisanie juz nie
 -- Function creates and adds to environment all
 -- IR elements and blocks created for IR representation
 -- from given expression.
@@ -363,7 +380,7 @@ generateExprIRElems (EAnd _ e1 e2) = do
     e2_reg <- generateExprIRElems e2
     (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
     let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
-            L ("lebel" ++ show (l+2)))
+            NoJump)
     put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
         L ("lebel" ++ show (l+2))), funcs', vars')
     return (res_reg)
@@ -386,7 +403,7 @@ generateExprIRElems (EOr _ e1 e2) = do
     e2_reg <- generateExprIRElems e2
     (s', (elems', n'), (blocks', l', lebel1'), funcs', vars') <- get
     let b3 = (lebel1', elems' ++ [IRVarToReg name_reg e2_reg], 
-            L ("lebel" ++ show (l+2)))
+            NoJump)
     put (s', ([IRVarFromReg res_reg name_reg], n'), (blocks' ++ [b3], l', 
         L ("lebel" ++ show (l+2))), funcs', vars')
     return (res_reg)
@@ -457,13 +474,13 @@ generateStmtIRElems (Empty _) = return ()
 generateStmtIRElems (BStmt _ (Block _ stmts)) = do
     -- ending the IR block created so far
     (s, (elems, n), (blocks, l, lebel1), funcs, vars) <- get
-    let b = (lebel1, elems, L ("lebel" ++ show l))
+    let b = (lebel1, elems, NoJump)
     put (s, ([], n), (blocks ++ [b], l + 1, 
         L ("lebel" ++ show l)), funcs, vars)
     -- starting new IR block for block of stmts
     generateBlockIRElems stmts
     (s', (elems', n'), (blocks', l', lebel1'), funcs', _) <- get
-    let b2 = (lebel1', elems', L ("lebel" ++ show l'))
+    let b2 = (lebel1', elems', NoJump)
     -- restoring old variables env after exiting inner block
     put (s', ([], n'), (blocks' ++ [b2], l' + 1, 
         L ("lebel" ++ show l')), funcs', vars)
@@ -531,8 +548,7 @@ generateStmtIRElems (CondElse _ e stmt1 stmt2) = do
     -- generating block for else
     generateStmtIRElems stmt2
     (s'', (elems'', n''), (blocks'', l'', lebel1''), f'', v'') <- get
-    let b3 = (lebel1'', elems'',
-         L ("lebel" ++ show (l+2)))
+    let b3 = (lebel1'', elems'', NoJump)
     put (s'', ([], n''), (blocks'' ++ [b3], l'', 
         L ("lebel" ++ show (l + 2))), f'', v'')
     return ()
@@ -549,8 +565,7 @@ generateStmtIRElems (Cond _ e stmt) = do
     -- generating block for then
     generateStmtIRElems stmt
     (s', (elems', n'), (blocks', l', lebel1'), f', v') <- get
-    let b2 = (lebel1', elems', 
-            L ("lebel" ++ show (l+1)))
+    let b2 = (lebel1', elems', NoJump)
     put (s', ([], n'), (blocks' ++ [b2], l', 
         L ("lebel" ++ show (l + 1))), f', v')
     return ()
@@ -566,8 +581,7 @@ generateStmtIRElems (While _ e stmt) =  do
     -- generating block for while body
     generateStmtIRElems stmt
     (s', (elems', n'), (blocks', l', lebel1'), f', v') <- get
-    let b2 = (lebel1', elems', 
-            L ("lebel" ++ show (l+1)))
+    let b2 = (lebel1', elems', NoJump)
     put (s', ([], n'), (blocks' ++ [b2], l', 
         L ("lebel" ++ show (l + 1))), f', v')
     -- generating block for while condidtion
@@ -581,6 +595,7 @@ generateStmtIRElems (While _ e stmt) =  do
 generateStmtIRElems (SExp _ e) = do
     _ <- generateExprIRElems e
     return ()
+
 
 -- Function returns a list containing function arguments'
 -- identificators

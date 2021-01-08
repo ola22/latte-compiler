@@ -18,20 +18,20 @@ type RegSet = S.Set String
 
 
 -- TODO ZMIENI
--- zeby wynik calla byla na koncu, a nie na poczatku
+    -- zeby wynik calla byla na koncu, a nie na poczatku
 -- te rejestry, żeby były inne
--- tamto zapamiętywanie i potem przesuwanie, żeby było inaczej
+    -- tamto zapamiętywanie i potem przesuwanie, żeby było inaczej
     -- zeby przenazywane zmienne zaczynaly sie od kropki czy podlogi np
     -- zeby funkcje sie nazywaly jakos ladniej w sensie -> main bez podlogi, reszta z podloga koniecznie!!!!!!!!!!
     -- dodac tym strconcat podloge
--- zeby w rax 
+    -- zeby w rax 
 
 -- zeby inaczej wyliczac warunki
--- BUG trzeba dwa razy wpisywac liczbe dla readinta
+    -- BUG trzeba dwa razy wpisywac liczbe dla readinta
 -- pozmieniac troche tego helpera asm
     -- komantarze
 -- readme
--- callling convention
+    -- callling convention
 -- jak najbardziej pozmieniac to :/
     -- sprawdzic wszytskie funkcje te ten tego
 
@@ -127,6 +127,7 @@ getIRElemsRegisters (el:rest) = do
 -- Function adds IR registers of given label
 getLabelRegisters :: Label -> Env (RegSet)
 getLabelRegisters (L _) = return (S.empty)
+getLabelRegisters (NoJump) = return (S.empty)
 getLabelRegisters (CondL reg _ _) = 
     addRegToSet reg
 getLabelRegisters (RetL reg) = 
@@ -191,8 +192,8 @@ saveOnRegStackLoc ir_reg asm_reg = do
     (f, regs, _) <- get
     case M.lookup ir_reg regs of
         Just offset -> do
-            liftIO $ appendFile f $                                        -- TODO TO ZMIENIC NA JAKIES MOVY, JAK TAM
-                "   lea     r14, [rbp " ++ offset ++ "]\n" ++
+            liftIO $ appendFile f $
+                "   lea     r14, [rbp" ++ offset ++ "]\n" ++
                 "   mov     [r14], " ++ asm_reg ++ "\n"
         Nothing -> undefined
     return ()
@@ -215,8 +216,8 @@ saveValFromStack ir_reg asm_reg = do
     (f, regs, _) <- get
     case M.lookup ir_reg regs of
         Just offset -> do
-            liftIO $ appendFile f $                                         -- TODO TO ZMIENIC NA JAKIES MOVY, JAK TAM
-                "   lea     r14, [rbp " ++ offset ++ "]\n" ++
+            liftIO $ appendFile f $
+                "   lea     r14, [rbp" ++ offset ++ "]\n" ++
                 "   mov     " ++ asm_reg ++ ", [r14]\n"
         Nothing -> undefined
     return ()
@@ -274,15 +275,15 @@ generateIRElemAssembly (IROp res_reg op reg1 reg2) = do
     case op of
         IRAdd -> do
             liftIO $ appendFile f $
-                "   add     r8, r9\n"
+                "   add    r8, r9\n"
             saveResOnStack res_reg "r8"
         IRSub -> do
             liftIO $ appendFile f $
-                "   sub      r8, r9\n"
+                "   sub     r8, r9\n"
             saveResOnStack res_reg "r8"
         IRTimes -> do
             liftIO $ appendFile f $
-                "   imul     r8, r9\n"
+                "   imul    r8, r9\n"
             saveResOnStack res_reg "r8"
         IRDiv -> do
             liftIO $ appendFile f $
@@ -331,17 +332,18 @@ generateIRElemAssembly (IROp res_reg op reg1 reg2) = do
                 "   setne   cl\n"
             saveResOnStack res_reg "rcx"
     return ()
-generateIRElemAssembly (IRCall res_reg f_name args_r) = do                       -- TODO DLA CALLA
+generateIRElemAssembly (IRCall res_reg f_name args_r) = do
     (f, _, _) <- get
     let offset = (length args_r + 1) * 8
     liftIO $ appendFile f $
         "   sub     rsp, " ++ show offset ++ "\n"
 
-    putArgsOnStack 0 args_r                          -- TODO
+    putArgsOnStack 0 args_r
 
     liftIO $ appendFile f $
         "   call    " ++ f_name ++ "\n" ++
-        "   mov     rax, [rsp +" ++ show (offset - 8) ++ "]\n" ++            -- TODO
+        "   mov     rax, [rsp + " 
+            ++ show (offset - 8) ++ "]\n" ++
         "   add     rsp, " ++ show offset ++ "\n"
     saveResOnStack res_reg "rax"  
     return ()
@@ -366,7 +368,7 @@ generateIRElemsAssembly (el:rest) = do
 
 -- Function generates assembly code for given
 -- IR block label.
-generateLabelAssembly :: Label -> Env ()                        -- TODO DLA RETA
+generateLabelAssembly :: Label -> Env ()
 generateLabelAssembly (L lebel) = do
     (f, _, _) <- get
     liftIO $ appendFile f $ "   jmp     " ++ lebel
@@ -375,19 +377,16 @@ generateLabelAssembly (CondL reg l1 l2) = do
     saveValInReg reg "rax"
     liftIO $ appendFile f $
         "   cmp     rax, 0\n" ++
-        "   jne     " ++ l1 ++ "\n" ++                   -- TODO TU ZMIANA :)
-        "   jmp   " ++ l2 ++ "\n"
+        "   jne     " ++ l1 ++ "\n" ++
+        "   jmp     " ++ l2 ++ "\n"
 generateLabelAssembly (RetL reg) = do
     (f, _, off) <- get
     -- we save it in rax due to c standards
     saveValInReg reg "rax" 
     liftIO $ appendFile f $
-        --"   lea     rdx, [rbp + 16]\n" ++                       -- TODO
-        "   lea     rdx, [rbp + " ++ show off ++ "]\n" ++
+        "   lea     rdx, [rbp + " 
+            ++ show off ++ "]\n" ++
         "   mov     [rdx], rax\n" ++
-        --"   mov     r10, rbp\n" ++                 -- TODO TO SB POZMIENIALAM
-        --"   add     r10, 16\n" ++
-        --"   mov     [r10], rax\n" ++
         "   mov     rsp, rbp\n" ++
         "   pop     rbp\n" ++
         "   ret\n"
@@ -397,10 +396,12 @@ generateLabelAssembly (VRetL) = do
         "   mov     rsp, rbp\n" ++
         "   pop     rbp\n" ++
         "   ret\n"
+generateLabelAssembly (NoJump) = return ()
 
 
 -- Function generates assembly code for given
--- IR block.
+-- IR block. We have to generate even empty blocks
+-- since there are different blocks that use their labels.
 generateBlockAssembly :: IRBlock -> Int -> Bool -> Env ()
 generateBlockAssembly ((L start_l), elems, end_l) offset is_first = do
     (f, _, _) <- get
@@ -450,7 +451,7 @@ generateFuncAssembly (args, blocks) = do
 
     -- allocating stack for function's arguments
     args_list <- getArgsList args
-    res_off <- allocateStackToArguments (8*2) args_list                                  -- może ja dam 8*2 -> że call będzie na samym końcu tak jakby
+    res_off <- allocateStackToArguments (8*2) args_list
 
     -- allocating stack for other IR registers
     last_offset <- allocateStackToRegisters 8 (S.toList regs')
