@@ -27,7 +27,7 @@ Wersje użytych w tym celu narzędzi
 * happy wersja 1.19.8
 
 
-# Kompilator
+## Kompilator
 * kod generowany do asemblera na architekturę x86_64, asemblowany przy uzyciu nasm
 * Calling convention - komplator używa własnego calling convention, wszystkie argumenty funkcji znajdują się na stosie.
                         pod adresami kolejno rsp + 16, rsp + 24, .. , a po nich znajduje się opcjonalnie wartość zwracana przez funkcję
@@ -41,7 +41,7 @@ Wersje użytych w tym celu narzędzi
 array, containers, process, mtl, filepath
 
 
-# Struktura katalogów i plików projektu
+## Struktura katalogów i plików projektu
 
 src/ zwiera pliki źródłowe projektu
     Latte/ katalog gramatyki i parsera
