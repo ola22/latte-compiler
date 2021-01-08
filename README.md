@@ -43,11 +43,11 @@ array, containers, process, mtl, filepath
 
 ## Struktura katalogów i plików projektu
 
-src/ zwiera pliki źródłowe projektu
-    Latte/ katalog gramatyki i parsera
-        Parsing/  zawiera pliki automatycznie wygenerowane przez parser `pliki parsera`
-        `Makefile`
-        `Latte.cf` - gramatyka języka Latte
+src/ zwiera pliki źródłowe projektu  
+    Latte/ katalog gramatyki i parsera  
+        Parsing/  zawiera pliki automatycznie wygenerowane przez parser `pliki parsera`  
+        `Makefile`  
+        `Latte.cf` - gramatyka języka Latte  
     Common/
         `Common.hs` - plik z powszechnie używanymi funkcjami pomocniczymi
         `ErrorPositions.hs` - zawiera funkcje służace do wydobywania pozycji elementów AST w pliku
