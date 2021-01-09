@@ -105,6 +105,8 @@ getIRElemRegisters (IRCall res_reg _ args_r) = do
     s1 <- addRegToSet res_reg
     args_regs <- getCallRegisters args_r
     return (S.union s1 args_regs)
+getIRElemRegisters (AssignCond reg _) = 
+    addRegToSet reg
 getIRElemRegisters (IRVarToReg reg1 reg2) = do
     s1 <- addRegToSet reg1
     s2 <- addRegToSet reg2
@@ -128,8 +130,12 @@ getIRElemsRegisters (el:rest) = do
 getLabelRegisters :: Label -> Env (RegSet)
 getLabelRegisters (L _) = return (S.empty)
 getLabelRegisters (NoJump) = return (S.empty)
-getLabelRegisters (CondL reg _ _) = 
+getLabelRegisters (CondL (IRLoc reg) _ _) = 
     addRegToSet reg
+getLabelRegisters (CondL (IRRel _ reg1 reg2) _ _) = do
+    s1 <- addRegToSet reg1
+    s2 <- addRegToSet reg2
+    return (S.union s1 s2)
 getLabelRegisters (RetL reg) = 
     addRegToSet reg
 getLabelRegisters (VRetL) = return (S.empty)
@@ -194,7 +200,7 @@ saveOnRegStackLoc ir_reg asm_reg = do
         Just offset -> do
             liftIO $ appendFile f $
                 "   lea     r14, [rbp" ++ offset ++ "]\n" ++
-                "   mov     [r14], " ++ asm_reg ++ "\n"
+                "   mov     qword [r14], " ++ asm_reg ++ "\n"
         Nothing -> undefined
     return ()
 
@@ -295,42 +301,6 @@ generateIRElemAssembly (IROp res_reg op reg1 reg2) = do
                 "   cqo\n" ++
                 "   idiv    rsi\n"
             saveResOnStack res_reg "rdx"
-        IRLTH -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   setl    cl\n"
-            saveResOnStack res_reg "rcx"
-        IRLE -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   setle   cl\n"
-            saveResOnStack res_reg "rcx"
-        IRGTH -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   setg    cl\n"
-            saveResOnStack res_reg "rcx"
-        IRGE -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   setge   cl\n"
-            saveResOnStack res_reg "rcx"
-        IREQU -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   sete    cl\n"
-            saveResOnStack res_reg "rcx"
-        IRNE -> do
-            liftIO $ appendFile f $
-                "   xor     rcx, rcx\n" ++ 
-                "   cmp     r8, r9\n" ++
-                "   setne   cl\n"
-            saveResOnStack res_reg "rcx"
     return ()
 generateIRElemAssembly (IRCall res_reg f_name args_r) = do
     (f, _, _) <- get
@@ -347,6 +317,8 @@ generateIRElemAssembly (IRCall res_reg f_name args_r) = do
         "   add     rsp, " ++ show offset ++ "\n"
     saveResOnStack res_reg "rax"  
     return ()
+generateIRElemAssembly (AssignCond reg n) = do
+    saveResOnStack reg (show n)
 generateIRElemAssembly (IRVarToReg reg1 reg2) = do
     saveValInReg reg2 "r12"
     saveResOnStack reg1 "r12"
@@ -372,12 +344,27 @@ generateLabelAssembly :: Label -> Env ()
 generateLabelAssembly (L lebel) = do
     (f, _, _) <- get
     liftIO $ appendFile f $ "   jmp     " ++ lebel
-generateLabelAssembly (CondL reg l1 l2) = do
+generateLabelAssembly (CondL (IRLoc reg) l1 l2) = do
     (f, _, _) <- get
     saveValInReg reg "rax"
     liftIO $ appendFile f $
         "   cmp     rax, 0\n" ++
         "   jne     " ++ l1 ++ "\n" ++
+        "   jmp     " ++ l2 ++ "\n"
+generateLabelAssembly (CondL (IRRel op reg1 reg2) l1 l2) = do
+    (f, _, _) <- get
+    saveValInReg reg1 "rax"
+    saveValInReg reg2 "rdx"
+    liftIO $ appendFile f $
+        "   cmp     rax, rdx\n"
+    case op of
+        IRLTH -> liftIO $ appendFile f $ "   jl      " ++ l1 ++ "\n"
+        IRLE -> liftIO $ appendFile f $ "   jle     " ++ l1 ++ "\n"
+        IRGE -> liftIO $ appendFile f $ "   jge     " ++ l1 ++ "\n"
+        IRGTH -> liftIO $ appendFile f $ "   jg      " ++ l1 ++ "\n"
+        IREQU -> liftIO $ appendFile f $ "   je      " ++ l1 ++ "\n"
+        IRNE -> liftIO $ appendFile f $ "   jne     " ++ l1 ++ "\n"
+    liftIO $ appendFile f $
         "   jmp     " ++ l2 ++ "\n"
 generateLabelAssembly (RetL reg) = do
     (f, _, off) <- get

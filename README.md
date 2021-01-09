@@ -34,7 +34,8 @@ Wersje użytych w tym celu narzędzi
 * Z powodu innego niż w C calling convention w katalogu `lib` znajduje się dodatkowa biblioteka runtime_helper.asm, która przed wywołaniem
   funkcji z C umieszcza argumenty w odpowiednich rejestrach (zgodnie ze standardem C)
 * Int 64bitowy
-* na drugą iterację planuję zrobić używanie rejestrów i optymalizacje.
+* kod generowany przy użyciu reprezentacji pośredniej o strukturze blokowej w postaci kodu czwórkowego, warunki i wyrażenia boolowskie wyliczane podejściem short-circuit evaluation
+* na drugą iterację planuję zrobić wykorzystanie rejestrów i optymalizacje.
 
 
 ## Użyte zewnętrzne biblioteki (haskellowe)
@@ -49,31 +50,31 @@ src/ zwiera pliki źródłowe projektu
         `Makefile`  
         `Latte.cf` - gramatyka języka Latte  
     Common/
-        `Common.hs` - plik z powszechnie używanymi funkcjami pomocniczymi
-        `ErrorPositions.hs` - zawiera funkcje służace do wydobywania pozycji elementów AST w pliku
-    `Compiler.hs` - plik z kodem tworzącym kod asemblera
-    `SematicChecker.hs` - plik frontendu kompilatora
-    `IRCreator` - plik tworzący reprezentację IR
-    `Main.hs` - plik główny kompilatora
-lib/ zawiera biblioteki
-    `runtime.c` - z funkcjami bibliotecznymi w c
-    `runtime_helper.asm` - plik asemblerowy, wywołujący funkcje biblioteczne z C
-                           potrzebny z powodu innej niż w C calling convention
-    `Makefile` - makefile plików bibliotecznych
-    `runtime.o` - objectfile pliku runtime.c
-    `runtime_helper.o` - objectfile pliku runtime_helper.asm
-tests/ zawiera dwa katalogi z testami good i bad
-
-`latc_x86_64` - skrypt uruchamiający kompilator
-
-`run_good.sh` - skrypt uruchamijaący kompilator na testach z katalogu good i sprawdza outputy
-`run_bad.sh` - skrypt uruchamiający kompilator na testach z katalogu bad
-
-`Latte.Compiler.cabal` - plik konfiguracyjny cabala
-`stack.yaml` - plik konfiguracyjny stacka
-`Makefile`
-`Readme.md`
-
-
+        `Common.hs` - plik z powszechnie używanymi funkcjami pomocniczymi  
+        `ErrorPositions.hs` - zawiera funkcje służace do wydobywania pozycji elementów AST w pliku  
+    `Compiler.hs` - plik z kodem tworzącym kod asemblera  
+    `SematicChecker.hs` - plik frontendu kompilatora  
+    `IRCreator` - plik tworzący reprezentację IR  
+    `Main.hs` - plik główny kompilatora  
+lib/ zawiera biblioteki  
+    `runtime.c` - z funkcjami bibliotecznymi w c  
+    `runtime_helper.asm` - plik asemblerowy, wywołujący funkcje biblioteczne z C  
+                           potrzebny z powodu innej niż w C calling convention  
+    `Makefile` - makefile plików bibliotecznych  
+    `runtime.o` - objectfile pliku runtime.c  
+    `runtime_helper.o` - objectfile pliku runtime_helper.asm  
+tests/ zawiera dwa katalogi z testami good i bad  
+  
+`latc_x86_64` - skrypt uruchamiający kompilator  
+  
+`run_good.sh` - skrypt uruchamijaący kompilator na testach z katalogu good i sprawdza outputy  
+`run_bad.sh` - skrypt uruchamiający kompilator na testach z katalogu bad  
+  
+`Latte.Compiler.cabal` - plik konfiguracyjny cabala  
+`stack.yaml` - plik konfiguracyjny stacka  
+`Makefile`  
+`Readme.md`  
+  
+  
 Aleksandra Falkiewicz 394182
 
