@@ -17,30 +17,13 @@ type Env = StateT (FilePath, RegEnv, Int) IO
 type RegSet = S.Set String
 
 
--- TODO ZMIENI
-    -- zeby wynik calla byla na koncu, a nie na poczatku
--- te rejestry, żeby były inne
-    -- tamto zapamiętywanie i potem przesuwanie, żeby było inaczej
-    -- zeby przenazywane zmienne zaczynaly sie od kropki czy podlogi np
-    -- zeby funkcje sie nazywaly jakos ladniej w sensie -> main bez podlogi, reszta z podloga koniecznie!!!!!!!!!!
-    -- dodac tym strconcat podloge
-    -- zeby w rax 
 
--- zeby inaczej wyliczac warunki
-    -- BUG trzeba dwa razy wpisywac liczbe dla readinta
--- pozmieniac troche tego helpera asm
-    -- komantarze
--- readme
-    -- callling convention
--- jak najbardziej pozmieniac to :/
-    -- sprawdzic wszytskie funkcje te ten tego
+
 
 
 -- Function returns beginning of assembly file
 assemblyBeggining :: String
 assemblyBeggining =
-    "bits 64\n" ++
-    "default rel\n\n" ++
     "global _main\n\n" ++
     "extern _printInt\n" ++
     "extern _printString\n" ++
@@ -474,7 +457,7 @@ compileBlocks blocks s_env = do
     -- with strings' declarations
     (outfile, _, _) <- get
     liftIO $ appendFile outfile $ 
-        assemblyBeggining ++ (getSectionData s_env)
+        assemblyBeggining ++ (getSectionData s_env) ++ "\n\n\nsection .text\n\n"
     generateFuncsAssembly blocks
 
 

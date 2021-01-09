@@ -89,15 +89,6 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 
 
 
--- TODO: 
-    -- consty, żeby sie odrazu wyliczały
-    -- TODO to wywalic do jednej funkcji te relval czy cos
-    -- polaczyc generateDeclIrElems
-    -- po co robic jumpa jak leca pokolei!!!!!!!!!!!!!!!!!!!!!!!!! -> czy wgl jest lepeij jak takie puste niewiadomo, co?? :<
-    -- moze wywalic te bez snsu labely VRet na koncu -> nie mozna!!!!!!!!!!!!
-    -- optimize const booli
--- optimize const rel op jak sa dwa consty tez
--- optimize const booli jak tylko jeden jest ok
 
 
 -- Function returns type of given expression 

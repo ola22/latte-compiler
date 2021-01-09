@@ -1,5 +1,3 @@
-bits 64
-default rel
 
 global _strconcat
 global _strcmp
@@ -10,6 +8,7 @@ global _readInt
 global _readString
 global _error
 global main
+
 
 extern strconcat_c
 extern strcmp_c

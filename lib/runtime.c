@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 
+// Funkcje biblioteczne napisane w języku C Funkcje 
 
 
 void printInt_c(int64_t n) {
