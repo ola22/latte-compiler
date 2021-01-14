@@ -18,6 +18,10 @@ transProgram x = case x of
 transTopDef :: Show a => TopDef a -> Result
 transTopDef x = case x of
   FnDef _ type_ ident args block -> failure x
+  StructDef _ ident structbodys -> failure x
+transStructBody :: Show a => StructBody a -> Result
+transStructBody x = case x of
+  Attr _ type_ ident -> failure x
 transArg :: Show a => Arg a -> Result
 transArg x = case x of
   Arg _ type_ ident -> failure x
@@ -29,7 +33,7 @@ transStmt x = case x of
   Empty _ -> failure x
   BStmt _ block -> failure x
   Decl _ type_ items -> failure x
-  Ass _ ident expr -> failure x
+  Ass _ expr1 expr2 -> failure x
   Incr _ ident -> failure x
   Decr _ ident -> failure x
   Ret _ expr -> failure x
@@ -38,25 +42,41 @@ transStmt x = case x of
   CondElse _ expr stmt1 stmt2 -> failure x
   While _ expr stmt -> failure x
   SExp _ expr -> failure x
+  For _ type_ ident expr stmt -> failure x
 transItem :: Show a => Item a -> Result
 transItem x = case x of
   NoInit _ ident -> failure x
   Init _ ident expr -> failure x
-transType :: Show a => Type a -> Result
-transType x = case x of
+transBuiltinType :: Show a => BuiltinType a -> Result
+transBuiltinType x = case x of
   Int _ -> failure x
   Str _ -> failure x
   Bool _ -> failure x
   Void _ -> failure x
+transArrayType :: Show a => ArrayType a -> Result
+transArrayType x = case x of
+  BuiltinArr _ builtintype -> failure x
+  UserArr _ ident -> failure x
+transType :: Show a => Type a -> Result
+transType x = case x of
+  BltinType _ builtintype -> failure x
+  ArrType _ arraytype -> failure x
+  UserType _ ident -> failure x
   Fun _ type_ types -> failure x
 transExpr :: Show a => Expr a -> Result
 transExpr x = case x of
+  ENewArr _ type_ expr -> failure x
+  ENewStruct _ type_ -> failure x
   EVar _ ident -> failure x
   ELitInt _ integer -> failure x
   ELitTrue _ -> failure x
   ELitFalse _ -> failure x
-  EApp _ ident exprs -> failure x
   EString _ string -> failure x
+  EStructCoerce _ expr -> failure x
+  EStructArrCoerce _ arraytype -> failure x
+  EApp _ ident exprs -> failure x
+  EStructField _ expr ident -> failure x
+  EArrAt _ expr1 expr2 -> failure x
   Neg _ expr -> failure x
   Not _ expr -> failure x
   EMul _ expr1 mulop expr2 -> failure x

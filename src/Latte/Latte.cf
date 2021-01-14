@@ -6,7 +6,11 @@ Program.   Program ::= [TopDef] ;
 
 FnDef.	   TopDef ::= Type Ident "(" [Arg] ")" Block ;
 
+StructDef.  TopDef ::= "class" Ident "{" [StructBody] "}" ;
+Attr.      StructBody ::= Type Ident ";" ;
+
 separator nonempty TopDef "" ;
+separator nonempty StructBody "" ;
 
 Arg. 	   Arg ::= Type Ident;
 
@@ -30,7 +34,7 @@ Init.      Item ::= Ident "=" Expr ;
 
 separator nonempty Item "," ;
 
-Ass.       Stmt ::= Ident "=" Expr  ";" ;
+Ass.       Stmt ::= Expr "=" Expr  ";" ;
 
 Incr.      Stmt ::= Ident "++"  ";" ;
 
@@ -48,49 +52,74 @@ While.     Stmt ::= "while" "(" Expr ")" Stmt ;
 
 SExp.      Stmt ::= Expr  ";" ;
 
+For.       Stmt ::= "for" "(" Type Ident ":" Expr ")" Stmt ;
+
 -- Types ---------------------------------------------------
 
-Int.       Type ::= "int" ;
+Int.       BuiltinType ::= "int" ;
 
-Str.       Type ::= "string" ;
+Str.       BuiltinType ::= "string" ;
 
-Bool.      Type ::= "boolean" ;
+Bool.      BuiltinType ::= "boolean" ;
 
-Void.      Type ::= "void" ;
+Void.      BuiltinType ::= "void" ;
+
+BuiltinArr.     ArrayType ::= BuiltinType "[]" ;
+
+UserArr.        ArrayType ::= Ident "[]" ;
+
+BltinType.      Type ::= BuiltinType ;
+
+ArrType.        Type ::= ArrayType ;
+
+UserType.       Type ::= Ident ;
 
 internal   Fun. Type ::= Type "(" [Type] ")" ;
 
-separator  Type "," ;
+separator Type "," ;
+
 
 -- Expressions ---------------------------------------------
 
-EVar.      Expr6 ::= Ident ;
+ENewArr.            Expr4 ::= "new" Type "[" Expr "]" ;
 
-ELitInt.   Expr6 ::= Integer ;
+ENewStruct.            Expr4 ::= "new" Type ;
 
-ELitTrue.  Expr6 ::= "true" ;
+EVar.               Expr6 ::= Ident ;
 
-ELitFalse. Expr6 ::= "false" ;
+ELitInt.            Expr7 ::= Integer ;
 
-EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
+ELitTrue.           Expr7 ::= "true" ;
 
-EString.   Expr6 ::= String ;
+ELitFalse.          Expr7 ::= "false" ;
 
-Neg.       Expr5 ::= "-" Expr6 ;
+EString.            Expr7 ::= String ;
 
-Not.       Expr5 ::= "!" Expr6 ;
+EStructCoerce.       Expr7 ::= "(" Expr ")" "null" ;
 
-EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
+EStructArrCoerce.    Expr7 ::= "(" ArrayType ")" "null" ;
 
-EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
+EApp.               Expr7 ::= Ident "(" [Expr] ")" ;
+    
+EStructField.        Expr6 ::= Expr6 "." Ident ;
 
-ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
+EArrAt.             Expr5 ::= Expr5 "[" Expr "]" ;
 
-EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
+Neg.                Expr5 ::= "-" Expr6 ;
 
-EOr.       Expr ::= Expr1 "||" Expr ;
+Not.                Expr5 ::= "!" Expr6 ;
 
-coercions  Expr 6 ;
+EMul.               Expr4 ::= Expr4 MulOp Expr5 ;
+
+EAdd.               Expr3 ::= Expr3 AddOp Expr4 ;
+
+ERel.               Expr2 ::= Expr2 RelOp Expr3 ;
+
+EAnd.               Expr1 ::= Expr2 "&&" Expr1 ;
+
+EOr.                Expr ::= Expr1 "||" Expr ;
+
+coercions  Expr 7 ;
 
 separator  Expr "," ;
 
