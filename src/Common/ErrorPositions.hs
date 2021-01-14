@@ -30,6 +30,7 @@ getPosProg (Program pos _) = getLineNumber pos
 
 getPosTopDef :: TopDef ErrorPos -> String
 getPosTopDef (FnDef pos _ _ _ _) = getLineNumber pos
+getPosTopDef (StructDef pos _ _) = getLineNumber pos
 
 
 getPosArg :: Arg ErrorPos -> String
@@ -53,6 +54,7 @@ getPosStmt (Cond pos _ _) = getLineNumber pos
 getPosStmt (CondElse pos _ _ _) = getLineNumber pos
 getPosStmt (While pos _ _) = getLineNumber pos
 getPosStmt (SExp pos _) = getLineNumber pos
+getPosStmt (For pos _ _ _ _) = getLineNumber pos
 
 
 getPosItem :: Item ErrorPos -> String
@@ -61,10 +63,9 @@ getPosItem (Init pos _ _) = getLineNumber pos
 
 
 getPosType :: Type ErrorPos -> String
-getPosType (Int pos) = getLineNumber pos
-getPosType (Str pos) = getLineNumber pos
-getPosType (Bool pos) = getLineNumber pos
-getPosType (Void pos) = getLineNumber pos
+getPosType (BltinType pos _) = getLineNumber pos
+getPosType (ArrType pos _) = getLineNumber pos
+getPosType (UserType pos _) = getLineNumber pos
 getPosType (Fun pos _ _) = getLineNumber pos
 
 
@@ -82,6 +83,12 @@ getPosExpr (EAdd pos _ _ _) = getLineNumber pos
 getPosExpr (ERel pos _ _ _) = getLineNumber pos
 getPosExpr (EAnd pos _ _) = getLineNumber pos
 getPosExpr (EOr pos _ _) = getLineNumber pos
+getPosExpr (ENewArr pos _ _) = getLineNumber pos
+getPosExpr (ENewStruct pos _) = getLineNumber pos
+getPosExpr (EStructCoerce pos _) = getLineNumber pos
+getPosExpr (EStructArrCoerce pos _) = getLineNumber pos
+getPosExpr (EStructField pos _ _) = getLineNumber pos
+getPosExpr (EArrAt pos _ _) = getLineNumber pos
 
 
 getPosAddOp :: AddOp ErrorPos -> String
