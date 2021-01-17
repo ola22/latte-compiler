@@ -58,14 +58,16 @@ char* strconcat_c(char* a, char* b) {
 }
 
 
-int64_t strcmp_c(char* a, char* b)
-{
+int64_t strcmp_c(char* a, char* b) {
     return strcmp(a, b) == 0;
 }
 
 
-int64_t strcmpn_c(char* a, char* b)
-{
+int64_t strcmpn_c(char* a, char* b) {
     return strcmp(a, b) != 0;
 }
 
+
+void* allocate_c(size_t size) {
+    return calloc(size, 8);
+}

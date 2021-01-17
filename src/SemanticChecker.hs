@@ -382,7 +382,7 @@ checkStmt (For pos typ iden e stmt) = do
         put (funs, vars, fun, s)
     else
         throwError ("In line " ++ getLineNumber pos ++ 
-            ":\nIn for loop type of temp variable doesn't" ++
+            ":\nIn for loop type of temp variable '" ++ getName iden ++ "' doesn't" ++
             " match list's elements types")
 
 

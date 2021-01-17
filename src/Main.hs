@@ -39,7 +39,6 @@ parseFile p f prog_s =
                 case res of
                     Nothing -> do
                         hPutStrLn stderr ("OK\n")
-                        return ()
                         -- generating IR representation
                         (blocks, strStore) <- getIRRepresentation tree
                         let outfile = dropExtension f ++ ".s"
@@ -53,7 +52,6 @@ parseFile p f prog_s =
                     Just err -> do
                         hPutStrLn stderr ("ERROR\n" ++ err ++ "\n")
                         exitFailure
-
 
 
 main :: IO ()

@@ -32,6 +32,7 @@ assemblyBeggining =
     "extern _strconcat\n" ++
     "extern _strcmp\n" ++
     "extern _error\n" ++
+    "extern _allocate\n" ++
     "extern _strcmpn\n\n\n"
 
 
@@ -98,6 +99,16 @@ getIRElemRegisters (IRVarFromReg reg1 reg2) = do
     s1 <- addRegToSet reg1
     s2 <- addRegToSet reg2
     return (S.union s1 s2)
+getIRElemRegisters (GetPtr reg1 reg2 reg3) = do
+    s1 <- addRegToSet reg1
+    s2 <- addRegToSet reg2
+    s3 <- addRegToSet reg3
+    return (S.union s1 (S.union s2 s3))
+getIRElemRegisters (PutPtr reg1 reg2 reg3) = do
+    s1 <- addRegToSet reg1
+    s2 <- addRegToSet reg2
+    s3 <- addRegToSet reg3
+    return (S.union s1 (S.union s2 s3))
 
 
 -- Function adds IR elems registers
@@ -310,6 +321,23 @@ generateIRElemAssembly (IRVarFromReg reg1 reg2) = do
     saveValInReg reg2 "r12"
     saveResOnStack reg1 "r12"
     return ()
+generateIRElemAssembly (GetPtr reg1 reg2 reg3) = do
+    saveValInReg reg2 "rax"
+    saveValInReg reg3 "rsi"
+    (f, _, _) <- get
+    liftIO $ appendFile f $
+        "   lea     rdx, [rax + rsi * 8]\n" ++
+        "   mov     rax, [rdx]\n"
+    saveResOnStack reg1 "rax"
+generateIRElemAssembly (PutPtr reg1 reg2 reg3) = do
+    saveValInReg reg1 "rax"
+    saveValInReg reg2 "rsi"
+    saveValInReg reg3 "rdx"
+    (f, _, _) <- get
+    liftIO $ appendFile f $
+        "   lea     rdi, [rax + rsi * 8]\n" ++
+        "   mov     [rdi], rdx\n"
+
 
 
 -- Function generates assembly code for given

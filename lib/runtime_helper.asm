@@ -7,6 +7,7 @@ global _printString
 global _readInt
 global _readString
 global _error
+global _allocate
 global main
 
 
@@ -18,6 +19,7 @@ extern printString_c
 extern readInt_c
 extern readString_c
 extern error_c
+extern allocate_c
 extern _main
 
 
@@ -143,6 +145,18 @@ _error:
     ; aligning stack
     and rsp, 0xFFFFFFFFFFFF0000
     call error_c
+    ret
+
+
+_allocate:
+    mov r12, rsp
+    lea rdx, [rsp + 8]
+    mov rdi, [rdx]
+    and rsp, 0xFFFFFFFFFFFF0000
+    call allocate_c
+    mov rsp, r12
+    lea r12, [rsp + 16]
+    mov [r12], rax
     ret
 
 

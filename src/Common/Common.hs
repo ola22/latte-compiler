@@ -11,6 +11,7 @@ import Common.ErrorPositions
 
 
 type FuncTypMap = M.Map Ident (Type ErrorPos)
+type StructTypMap = M.Map Ident [StructBody ErrorPos]
 
 
 
@@ -25,7 +26,7 @@ getIden :: Item ErrorPos -> Ident
 getIden (Init _ iden _) = iden
 getIden (NoInit _ iden) = iden
 
--- data ArrayType a = BuiltinArr a (BuiltinType a) | UserArr a Ident
+
 -- Function returns type name from given type.
 getTypeName:: Type ErrorPos -> String
 getTypeName (BltinType _ typ) = 
@@ -40,7 +41,6 @@ getTypeName (ArrType _ typ) =
         (BuiltinArr pos b_typ) -> "array of " ++ getTypeName (BltinType pos b_typ)
         (UserArr _ iden) -> "array of " ++ getName iden
 getTypeName (UserType _ iden) = getName iden
-
 
 
 -- If given expression is not function application
@@ -70,39 +70,23 @@ getType (EAdd pos e1 op e2) =
                     in case typ2 of
                         Just t -> Just t
                         Nothing -> Nothing
-getType (ERel pos e1 op e2) = 
-    case op of
-        LTH _ -> Just (BltinType pos (Int pos))
-        LE _ -> Just (BltinType pos (Int pos))
-        GTH _ -> Just (BltinType pos (Int pos))
-        GE _ -> Just (BltinType pos (Int pos))
-        EQU _ ->
-            let typ = getType e1 
-            in case typ of
-                Just t -> Just t
-                Nothing ->
-                    let typ2 = getType e2 
-                    in case typ2 of
-                        Just t -> Just t
-                        Nothing -> Nothing
-        NE _ ->
-            let typ = getType e1 
-            in case typ of
-                Just t -> Just t
-                Nothing ->
-                    let typ2 = getType e2 
-                    in case typ2 of
-                        Just t -> Just t
-                        Nothing -> Nothing
-getType (ENewArr _ typ _) = Just typ
-getType (ENewStruct _ typ) = Just typ
-getType (EStructCoerce _ _) = undefined
-getType (EStructArrCoerce _ _) = undefined
-getType (EStructField _ _ _) = undefined
-getType (EArrAt _ _ _) = undefined -- chyba typ expr1
+getType (ERel pos _ _ _) = 
+    Just (BltinType pos (Bool pos))
+getType (ENewArr pos typ _) = 
+    case typ of
+        BltinType _ b_typ -> 
+            return (ArrType pos (BuiltinArr pos b_typ))
+        UserType _ iden ->
+            return (ArrType pos (UserArr pos iden))
+        _ -> undefined
+getType (ENewStruct _ typ) = Just typ    -- ?????????????
+getType (EStructCoerce _ _) = undefined  -- ???????????
+getType (EStructArrCoerce _ _) = undefined  -- ??????????
+getType (EStructField _ _ _) = undefined   -- ??????????
+getType (EArrAt _ _ _) = Nothing -- chyba typ expr1 ok
 
 
--- Function checks if given two types are the same.
+-- Functions below check if given two types are the same.
 builtinTypesEquals :: BuiltinType ErrorPos -> BuiltinType ErrorPos -> Bool
 builtinTypesEquals (Int _) (Int _) = True
 builtinTypesEquals (Str _) (Str _) = True
@@ -110,7 +94,7 @@ builtinTypesEquals (Bool _) (Bool _) = True
 builtinTypesEquals (Void _) (Void _) = True
 builtinTypesEquals _ _ = False
 
--- data ArrayType a = BuiltinArr a (BuiltinType a) | UserArr a Ident
+
 arrTypesEquals :: ArrayType ErrorPos -> ArrayType ErrorPos -> Bool
 arrTypesEquals (BuiltinArr _ typ1) (BuiltinArr _ typ2) = 
     builtinTypesEquals typ1 typ2
@@ -119,13 +103,6 @@ arrTypesEquals (UserArr _ iden1) (UserArr _ iden2) =
 arrTypesEquals _ _ = False
 
 
-{-
-data Type a
-    = BltinType a (BuiltinType a)
-    | ArrType a (ArrayType a)
-    | UserType a Ident
-    | Fun a (Type a) [Type a]
--}
 typesEquals :: Type ErrorPos -> Type ErrorPos -> Bool
 typesEquals (BltinType _ typ1) (BltinType _ typ2) = 
     builtinTypesEquals typ1 typ2
@@ -149,8 +126,11 @@ libFuns = [((Ident "printInt"), (Fun Nothing (BltinType Nothing (Void Nothing))
 
 
 -- Function creates map containing function's types
-getFunctionsTypes :: FuncTypMap -> [TopDef ErrorPos] -> FuncTypMap
-getFunctionsTypes m [] = m
-getFunctionsTypes m ((FnDef _ typ iden _ _):rest) = 
-    getFunctionsTypes (M.insert iden typ m) rest
+getFunctionsTypes :: FuncTypMap -> StructTypMap -> [TopDef ErrorPos] 
+                -> (FuncTypMap, StructTypMap)
+getFunctionsTypes f_m s_m [] = (f_m, s_m)
+getFunctionsTypes f_m s_m ((FnDef _ typ iden _ _):rest) = 
+    getFunctionsTypes (M.insert iden typ f_m) s_m rest
+getFunctionsTypes f_m s_m ((StructDef _ iden attrs):rest) =
+    getFunctionsTypes f_m (M.insert iden attrs s_m) rest
 
