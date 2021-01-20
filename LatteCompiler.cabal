@@ -51,6 +51,7 @@ executable latc_x86_64
                        SemanticChecker
                        IRCreator
                        Compiler
+                       LCSE
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
