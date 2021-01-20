@@ -1,0 +1,27 @@
+
+int main () {
+  int [] h = new int [5];
+  int a, b, c, d, e, f, g;
+  a = 4;
+  b = a + 5;
+  c = a + 5;
+  d = a + 5;
+  e = a * 4;
+  f = a + 5;
+  a = 1;
+  e = a * 4;
+  g = a + 5;
+  h[a * 4] = 2;
+  printInt(h[4]);
+  printInt(a);
+  printInt(b);
+  printInt(c);
+  printInt(d);
+  printInt(e);
+  printInt(f);
+  printInt(g);
+  // 2, 1, 9, 9, 9, 4, 9, 6
+  // add z 5, mul z 4, mul z 4, add z 5
+  return 0 ;
+}
+ 

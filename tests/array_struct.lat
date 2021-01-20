@@ -1,0 +1,44 @@
+class list {
+  int elem;
+  list next;
+}
+
+int main() {
+  list[] a = new list[3];
+  a[0] = new list;
+  a[1] = new list;
+  a[2] = new list;
+  
+  (a[0]).elem = 1;
+  (a[0]).next = a[1];
+  
+  list k = a[1];
+  k.elem = 2;
+  k.next = a[2];
+  
+  (a[2]).elem = 3;
+  (a[2]).next = (list)null;
+  
+  printInt((a[0]).elem);
+  printInt((a[0]).next.elem);
+  list b = a[2];
+  printInt(b.elem);
+  
+  A[] p = new A[5];
+  p[0] = new A;
+    (p[0]).x = new int[4];
+    (p[0]).x[3] = 57;
+
+  
+  return 0;
+}
+
+class A {
+    int[] x;
+}
+
+
+class list2 {
+  int elem;
+  list next;
+}

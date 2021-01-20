@@ -34,15 +34,6 @@ type ProgChecker = StateT (FunStore, VarStore, Type ErrorPos, StructStore)
 
 
 
-{-
-
--- czy indeks nie wychodzi poza tablice????? -> chyba nie trzxa <3
-- FOR MA MIEC TO VARIABLE WEWNATRZ SIEBIE TYLKO WIDOCZNE :<
-tablica tablic
-co z tym coerce???????????
--}
-
-
 
 
 
@@ -178,7 +169,6 @@ checkArgType _ _ = return ()
 
 -- Function adds function's arguments to variables' environment.
 -- It also checks theirs correctness.
--- być może z falsem będzie, ale wtedy dodając nie obchodzi mnie ten bool
 addArgsToEnv :: [Arg ErrorPos] -> ProgChecker ()
 addArgsToEnv [] = return ()
 addArgsToEnv ((Arg pos typ iden):rest) = do

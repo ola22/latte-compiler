@@ -79,11 +79,12 @@ getType (ENewArr pos typ _) =
         UserType _ iden ->
             return (ArrType pos (UserArr pos iden))
         _ -> undefined
-getType (ENewStruct _ typ) = Just typ    -- ?????????????
-getType (EStructCoerce _ _) = undefined  -- ???????????
-getType (EStructArrCoerce _ _) = undefined  -- ??????????
-getType (EStructField _ _ _) = undefined   -- ??????????
-getType (EArrAt _ _ _) = Nothing -- chyba typ expr1 ok
+getType (ENewStruct _ typ) = Just typ
+getType (EStructCoerce _ _) = Nothing
+getType (EStructArrCoerce pos typ) = 
+    Just (ArrType pos typ)
+getType (EStructField _ _ _) = Nothing
+getType (EArrAt _ _ _) = Nothing
 
 
 -- Functions below check if given two types are the same.

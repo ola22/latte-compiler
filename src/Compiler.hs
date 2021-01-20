@@ -485,7 +485,8 @@ compileBlocks blocks s_env = do
     -- with strings' declarations
     (outfile, _, _) <- get
     liftIO $ appendFile outfile $ 
-        assemblyBeggining ++ (getSectionData s_env) ++ "\n\n\nsection .text\n\n"
+        assemblyBeggining ++ (getSectionData s_env) 
+        ++ "\n\n\nsection .text\n\n"
     generateFuncsAssembly blocks
 
 

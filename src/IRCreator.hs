@@ -36,17 +36,17 @@ data IRReg =
     Reg Integer | -- normal registers
     StrLoc Integer | -- string locations
     VarReg String -- variables register
-    deriving Show
+    deriving (Eq, Ord, Show, Read)
 
 -- datatype for conditions
-data IRCond = 
+data IRCond =  
     IRLoc IRReg | 
     IRRel IRRelOp IRReg IRReg deriving Show
 
 -- arithmetic operations used in IR
 data IRBinOp = 
     IRAdd | IRSub | IRTimes | IRDiv | IRMod
-    deriving Show
+    deriving (Eq, Ord, Show, Read)
 -- relation operations used in IR
 data IRRelOp = 
     IRLTH | IRLE | IRGTH | IRGE | IREQU | IRNE
@@ -64,8 +64,8 @@ data IRElem =
     AssignCond IRReg Integer | -- for making boolean expressions
     IRVarToReg IRReg IRReg | -- assigning var (var_reg, val_reg)
     IRVarFromReg IRReg IRReg | -- getting var's val to reg r (r, var_reg)
-    GetPtr IRReg IRReg IRReg | -- readPtr
-    PutPtr IRReg IRReg IRReg  -- writePtr
+    GetPtr IRReg IRReg IRReg | -- getting pointer (to an array or struct)
+    PutPtr IRReg IRReg IRReg  -- storeing pointer (to an array or struct)
     deriving Show
 
 -- data for storeing labels used in blocks
@@ -110,8 +110,26 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 
 
 
+-- Function returns the index of given struct's field.
+-- Giving "" iden will return number of all fields
+getFieldIndexHelper :: [StructBody ErrorPos] -> Integer -> Ident -> IRStore (Integer)
+getFieldIndexHelper [] idx _ = return (idx - 1)
+getFieldIndexHelper ((Attr _ _ iden):rest) idx f_iden =
+    if (getName iden == getName f_iden)
+        then return (idx)
+    else
+        getFieldIndexHelper rest (idx + 1) f_iden
 
 
+-- Returns index of a field of a given structure.
+-- The indexes are 1, ... , n
+getFieldIndex :: Ident -> Ident -> IRStore (Integer)
+getFieldIndex s_iden f_iden = do
+    (_, _, _, _, _, structs) <- get
+    let res = M.lookup s_iden structs
+    case res of
+        Nothing -> undefined
+        Just fields -> getFieldIndexHelper fields 1 f_iden
 
 
 -- Function returns type of given array's elements.
@@ -130,14 +148,34 @@ getArrayAtType (EVar pos iden) vars =
 getArrayAtType _ _ = undefined
 
 
+--  Function returns type of given structure's field
+getFieldsTypeHelper :: [StructBody ErrorPos] -> Ident -> StructTypMap -> Type ErrorPos
+getFieldsTypeHelper [] _ _ = undefined
+getFieldsTypeHelper ((Attr _ typ iden):rest) f_iden structs =
+    if (getName iden == getName f_iden)
+        then typ
+    else
+        getFieldsTypeHelper rest f_iden structs
+
+
+--  Function returns type of given structure's field
+getFieldsType :: Ident -> Ident -> StructTypMap -> Type ErrorPos
+getFieldsType s_iden f_iden structs = do
+    let res = M.lookup s_iden structs
+    case res of
+        Nothing -> undefined
+        Just fields -> getFieldsTypeHelper fields f_iden structs
+
+
 -- Function returns type of given expression 
-getExprType :: Expr ErrorPos -> FuncTypMap -> VarEnv -> Type ErrorPos
-getExprType e funcs vars = do
+getExprType :: Expr ErrorPos -> FuncTypMap -> VarEnv -> StructTypMap -> Type ErrorPos
+getExprType e funcs vars structs = do
     let typ = getType e
     case typ of
         Just t -> t
         Nothing ->
-            -- we know here that e is FAppl or Var
+            -- we know here that e is FAppl, Var, 
+            -- Array's elem or structure's field
             case e of
                 (EVar _ iden) -> do
                     case M.lookup (getName iden) vars of
@@ -146,8 +184,22 @@ getExprType e funcs vars = do
                 (EApp _ iden _) -> do
                     case M.lookup iden funcs of
                         Nothing -> undefined
-                        Just func_type -> func_type          -- TODO TYPY OBJECTOW, BO W MAPIE TRZA SZUKAC, tablice juz ok :) :/
+                        Just func_type -> func_type
                 (EArrAt _ arr_e _) -> getArrayAtType arr_e vars
+                (EStructCoerce pos name) -> do
+                    case name of
+                        EVar _ struct_name -> do
+                            case M.lookup struct_name structs of
+                                Nothing -> undefined
+                                Just _ -> (UserType pos struct_name)
+                        _ -> undefined
+                (EStructField _ str field) -> do
+                    let str_typ = getExprType str funcs vars structs
+                    case str_typ of
+                        (UserType _ s_iden) ->
+                            getFieldsType s_iden field structs
+                        (ArrType pos _) -> (BltinType pos (Int pos))
+                        _ -> undefined
                 _ -> undefined
 
 
@@ -300,15 +352,15 @@ optimizeConstBoolOp r1 r2 op =
 -- l2 is label when we know e is false
 generateBoolExprIRElems :: Expr ErrorPos -> String -> String -> IRStore ([IRBlock])
 generateBoolExprIRElems (EVar pos iden) l1 l2 = do
-    (_, _, _, funcs', vars', _) <- get
-    let var_typ = getExprType (EVar pos iden) funcs' vars'
+    (_, _, _, funcs', vars', structs') <- get
+    let var_typ = getExprType (EVar pos iden) funcs' vars' structs'
     case var_typ of 
         (BltinType _ (Bool _)) -> do
             e_reg <- generateExprIRElems (EVar pos iden)
             (_, (elems, _), (blocks, _, lebel1), _, _, _) <- get
             let b = (lebel1, elems, CondL (IRLoc e_reg) l1 l2)
             return (blocks ++ [b])
-        _ -> undefined                                                              -- TODOD!!!!!!!!!!!!!!!! -> chyba może tak zostać <3
+        _ -> undefined
 generateBoolExprIRElems (ELitTrue _) l1 _ = do
     (_, (elems, _), (blocks, _, lebel1), _, _, _) <- get
     let b = (lebel1, elems, L l1)
@@ -396,7 +448,7 @@ generateAddIRElems e1 op e1_reg e2_reg = do
             put (s, (elems ++ [new_el], n + 1), b, funcs, vars, structs)
             return (res_reg)
         Plus _ -> do
-            let typ = getExprType e1 funcs vars
+            let typ = getExprType e1 funcs vars structs
             case typ of
                 (BltinType _ (Int _))-> do
                     let new_el = IROp res_reg IRAdd e1_reg e2_reg
@@ -406,6 +458,13 @@ generateAddIRElems e1 op e1_reg e2_reg = do
                     let new_el = IRCall res_reg "_strconcat" [e1_reg, e2_reg] 
                     put (s, (elems ++ [new_el], n + 1), b, funcs, vars, structs)
                     return (res_reg)
+
+
+-- Function returns struct's identificator
+-- of given type 
+getStructIdent :: Type ErrorPos -> Ident
+getStructIdent (UserType _ iden) = iden
+getStructIdent _ = undefined
 
 
 -- Function creates and adds to environment all
@@ -505,22 +564,36 @@ generateExprIRElems (ENewArr _ _ e) = do
     put (s, (elems ++ [el1] ++ [el2] ++ [el3], n+2), b, 
         funcs, vars, structs)
     return (res_reg)
-generateExprIRElems (ENewStruct _ _) = undefined
-generateExprIRElems (EStructCoerce _ _) = undefined
-generateExprIRElems (EStructArrCoerce _ _) = undefined
-generateExprIRElems (EStructField _ e _) = do
-    (_, _, _, funcs, vars, _) <- get
-    let e_typ = getExprType e funcs vars
+generateExprIRElems (ENewStruct _ typ) = do
+    size <- getFieldIndex (getStructIdent typ) (Ident "")
+    (s, (elems, n), b, funcs, vars, structs) <- get
+    let res_reg = Reg n
+    let el = IRCall res_reg "_allocate" [(Const size)]
+    put (s, (elems ++ [el], n+1), b, 
+        funcs, vars, structs)
+    return (res_reg)
+generateExprIRElems (EStructCoerce _ _) = return (Const 0)
+generateExprIRElems (EStructArrCoerce _ _) = return (Const 0)
+generateExprIRElems (EStructField _ e f_iden) = do
+    (_, _, _, funcs, vars, structs) <- get
+    let e_typ = getExprType e funcs vars structs
+    e_reg <- generateExprIRElems e
     -- an field can refer either to struct or an array
     case e_typ of
-        (UserType _ _) -> undefined
+        (UserType _ s_iden) -> do
+            idx <- getFieldIndex s_iden f_iden
+            (s, (elems, n), b, funcs', vars', structs') <- get
+            let res_reg = Reg n
+            let el = GetPtr res_reg e_reg (Const (idx - 1))
+            put (s, (elems ++ [el], n + 1), b, 
+                funcs', vars', structs')
+            return (res_reg)
         (ArrType _ _) -> do
-            e_reg <- generateExprIRElems e
-            (s, (elems, n), b, funcs', vars', structs) <- get
+            (s, (elems, n), b, funcs', vars', structs') <- get
             let res_reg = Reg n
             let el = GetPtr res_reg e_reg (Const 0)
             put (s, (elems ++ [el], n + 1), b, 
-                funcs', vars', structs)
+                funcs', vars', structs')
             return (res_reg)
         _ -> undefined
 generateExprIRElems (EArrAt _ arr_e index_e) = do
@@ -597,35 +670,29 @@ generateBlockIRElems (stmt:rest) = do
     generateBlockIRElems rest
 
 
--- Function generates IR elements and returns register with
--- array's assignment lvalue
-getArrayLValue :: Expr ErrorPos -> IRStore (IRReg)    -- TODO (bo jak dojda objecty to bedzie wesolo :)
-getArrayLValue (EVar _ iden) = do
-    (s, (elems, n), b, funcs, vars, structs) <- get
-    v_n <- getCurVarName iden
-    let res_reg = Reg n
-    let el = IRVarFromReg res_reg (VarReg v_n)
-    put (s, (elems ++ [el], n + 1), b, funcs, vars, structs)
-    return (res_reg)
-getArrayLValue _ = undefined
-
-
 -- Function generates IR elements for assignment. The lvalue of assignment
 -- can be a variable, an array reference to some element or struct's field
 generateAssignIRElems :: Expr ErrorPos -> Expr ErrorPos -> IRStore ()
 generateAssignIRElems iden_e e = do
+    e_reg <- generateExprIRElems e
     case iden_e of
         (EVar _ iden) -> do
-            e_reg <- generateExprIRElems e
             (s, (elems, n), b, funcs, vars, structs) <- get
             v_n <- getCurVarName iden
             let new_el = IRVarToReg (VarReg v_n) e_reg
             put (s, (elems ++ [new_el], n), b, funcs, vars, structs)
             return ()
-        (EStructField _ _ _) -> undefined   -- TODO
+        (EStructField _ str_e f_iden) -> do
+            (_, _, _, funcs, vars, structs) <- get
+            let str_typ = getExprType str_e funcs vars structs
+            str_reg <- generateExprIRElems str_e
+            idx <- getFieldIndex (getStructIdent str_typ) f_iden
+            (s, (elems, n), b, funcs', vars', structs') <- get
+            let el = PutPtr str_reg (Const (idx - 1)) e_reg
+            put (s, (elems ++ [el], n), b, funcs', vars', structs')
+            return ()
         (EArrAt _ arr_e idx) -> do
-            e_reg <- generateExprIRElems e
-            arr_reg <- getArrayLValue arr_e
+            arr_reg <- generateExprIRElems arr_e
             idx_reg <- generateExprIRElems idx
             (s, (elems, n), b, funcs, vars, structs) <- get
             let temp1 = Reg n
@@ -634,7 +701,7 @@ generateAssignIRElems iden_e e = do
             put (s, (elems ++ [el1] ++ [el2], n + 1), b, 
                 funcs, vars, structs)
             return ()
-        _ -> undefined   -- TODO
+        _ -> undefined
 
 
 -- Function creates and adds to environment all
@@ -767,7 +834,7 @@ generateStmtIRElems (SExp _ e) = do
     return ()
 generateStmtIRElems (For pos typ iden arr stmt) = do
     -- making while from for
-    let name = "magic_counter_variable_for"
+    let name = "_for_variable"
     let countDecl = Decl pos (BltinType Nothing (Int Nothing)) 
                     [Init pos (Ident name) (ELitInt pos 0)]
     let iterDecl = Decl pos typ [NoInit pos iden]

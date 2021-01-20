@@ -15,6 +15,8 @@ import Common.ErrorPositions
 import SemanticChecker
 import IRCreator
 import Compiler
+import LCSE
+
 
 
 
@@ -41,9 +43,12 @@ parseFile p f prog_s =
                         hPutStrLn stderr ("OK\n")
                         -- generating IR representation
                         (blocks, strStore) <- getIRRepresentation tree
+                        let optimized_blocks = optimizeIRElems blocks
                         let outfile = dropExtension f ++ ".s"
+                        --putStrLn $ show blocks
+                        --putStrLn $show optimized_blocks
                         -- generating assembly code
-                        startCompilation blocks strStore outfile
+                        startCompilation optimized_blocks strStore outfile
                         callCommand $ "nasm -g -f elf64 " ++ outfile
                         callCommand $ "gcc " ++ dropExtension f ++ ".o" 
                             ++ " lib/runtime.o lib/runtime_helper.o -o " 

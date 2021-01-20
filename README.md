@@ -35,7 +35,12 @@ Wersje użytych w tym celu narzędzi
   funkcji z C umieszcza argumenty w odpowiednich rejestrach (zgodnie ze standardem C)
 * Int 64bitowy
 * kod generowany przy użyciu reprezentacji pośredniej o strukturze blokowej w postaci kodu czwórkowego, warunki i wyrażenia boolowskie wyliczane podejściem short-circuit evaluation
-* na drugą iterację planuję zrobić wykorzystanie rejestrów i optymalizacje.
+
+
+## Rozszerzenia i optymalizacje
+* optymalizacja LCSE
+* tablice
+* struktury
 
 
 ## Użyte zewnętrzne biblioteki (haskellowe)
@@ -63,7 +68,7 @@ lib/ zawiera biblioteki
     `Makefile` - makefile plików bibliotecznych  
     `runtime.o` - objectfile pliku runtime.c  
     `runtime_helper.o` - objectfile pliku runtime_helper.asm  
-tests/ zawiera dwa katalogi z testami good i bad  
+tests/ zawiera dwa katalogi z testami good i bad oraz prosty test na lcse, tablice obietów i obiekty z tablicami 
   
 `latc_x86_64` - skrypt uruchamiający kompilator  
   
