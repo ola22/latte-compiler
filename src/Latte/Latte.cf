@@ -103,7 +103,7 @@ EApp.               Expr7 ::= Ident "(" [Expr] ")" ;
     
 EStructField.        Expr6 ::= Expr6 "." Ident ;
 
-EArrAt.             Expr5 ::= Expr5 "[" Expr "]" ;
+EArrAt.             Expr6 ::= Expr6 "[" Expr "]" ;
 
 Neg.                Expr5 ::= "-" Expr6 ;
 

@@ -18,18 +18,18 @@ int main() {
   a[1] = new list;
   a[2] = new list;
   
-  (a[0]).elem = 1;
-  (a[0]).next = a[1];
+  a[0].elem = 1;
+  a[0].next = a[1];
   
   list k = a[1];
   k.elem = 2;
   k.next = a[2];
   
-  (a[2]).elem = 3;
-  (a[2]).next = (list)null;
+  a[2].elem = 3;
+  a[2].next = (list)null;
   
-  printInt((a[0]).elem); // 1
-  printInt((a[0]).next.elem); // 2
+  printInt(a[0].elem); // 1
+  printInt(a[0].next.elem); // 2
   list b = a[2];
   printInt(b.elem); // 3
   

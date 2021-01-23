@@ -39,6 +39,9 @@ int main() {
   b[2] = true;
   b[2] = true;
   b[1] = false;
+
+  if (!b[1])
+    printString("checking bool array");  // checking bool arrays
   
   int k = 0;
 

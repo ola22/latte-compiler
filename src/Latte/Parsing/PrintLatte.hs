@@ -165,7 +165,7 @@ instance Print (Expr a) where
     EStructArrCoerce _ arraytype -> prPrec i 7 (concatD [doc (showString "("), prt 0 arraytype, doc (showString ")"), doc (showString "null")])
     EApp _ id exprs -> prPrec i 7 (concatD [prt 0 id, doc (showString "("), prt 0 exprs, doc (showString ")")])
     EStructField _ expr id -> prPrec i 6 (concatD [prt 6 expr, doc (showString "."), prt 0 id])
-    EArrAt _ expr1 expr2 -> prPrec i 5 (concatD [prt 5 expr1, doc (showString "["), prt 0 expr2, doc (showString "]")])
+    EArrAt _ expr1 expr2 -> prPrec i 6 (concatD [prt 6 expr1, doc (showString "["), prt 0 expr2, doc (showString "]")])
     Neg _ expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
     Not _ expr -> prPrec i 5 (concatD [doc (showString "!"), prt 6 expr])
     EMul _ expr1 mulop expr2 -> prPrec i 4 (concatD [prt 4 expr1, prt 0 mulop, prt 5 expr2])

@@ -105,6 +105,7 @@ All other symbols are terminals.
   |  |  **|**  | //Expr5// 
   | //Expr6// | -> | //Ident// 
   |  |  **|**  | //Expr6// ``.`` //Ident// 
+  |  |  **|**  | //Expr6// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr7// 
   | //Expr7// | -> | //Integer// 
   |  |  **|**  | ``true`` 
@@ -114,8 +115,7 @@ All other symbols are terminals.
   |  |  **|**  | ``(`` //ArrayType// ``)`` ``null`` 
   |  |  **|**  | //Ident// ``(`` //[Expr]// ``)`` 
   |  |  **|**  | ``(`` //Expr// ``)`` 
-  | //Expr5// | -> | //Expr5// ``[`` //Expr// ``]`` 
-  |  |  **|**  | ``-`` //Expr6// 
+  | //Expr5// | -> | ``-`` //Expr6// 
   |  |  **|**  | ``!`` //Expr6// 
   |  |  **|**  | //Expr6// 
   | //Expr3// | -> | //Expr3// //AddOp// //Expr4// 
