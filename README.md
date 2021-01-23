@@ -38,9 +38,17 @@ Wersje użytych w tym celu narzędzi
 
 
 ## Rozszerzenia i optymalizacje
-* optymalizacja LCSE
+* optymalizacja LCSE (załączone jako osobny moduł, jednak nie jest używane, ponieważ używany jest moduł GCSE)
+* optymalizacja GCSE
+    - w przypadku, kiedy wszystkie możliwe bloki zmieniają wartość zmiennej (np. w obu gałęziach ifa mamy a = 1, to po ifie a b = a + 1 będzie operowało na wartości a z ifa, bo się ona nie zmieniła)
+    - w przypadku dodawania i mnozenia (dla intów) eliminowane są również wyrażenia przemienne (np. po wyliczeniu a + b, wyrażenie b + a nie jest już wyliczane)
 * tablice
 * struktury
+* (oraz tablice struktur i struktury z atrybutami tablicowymi)
+* w katalogu tests dołączone są proste, krótkie testy: do LCSE, tablic struktur i struktur z atrybutem tablicowym
+   można je skompilować standardowo, np. `./latc_x86_64 tests/gcse_test.lat`
+   a następnie uruchomić, np. `./tests/gcse_test`
+   w komentarzach w plikach `.lat` znajdują się outy i objaśnienia
 
 
 ## Użyte zewnętrzne biblioteki (haskellowe)

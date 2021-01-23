@@ -256,8 +256,12 @@ checkIf pos e stmt1 stmt2 = do
     e_typ <- checkExp e
     case e_typ of
         (BltinType _ (Bool _)) -> do
-            checkStmt stmt1
-            checkStmt stmt2
+            case stmt1 of
+                (BStmt _ _) -> checkStmt stmt1
+                _ -> checkStmt $ BStmt pos (Block pos [stmt1])
+            case stmt2 of
+                (BStmt _ _) -> checkStmt stmt2
+                _ -> checkStmt $ BStmt pos (Block pos [stmt2])
         _ -> throwError ("In line " ++ getLineNumber pos 
                 ++ ":\nIn if statement given condition of wrong type."
                 ++ "Expected: bool, but got: " ++ getTypeName e_typ)
@@ -350,7 +354,10 @@ checkStmt (CondElse pos e stmt1 stmt2) =
 checkStmt (While pos e stmt) = do
     e_typ <- checkExp e
     case e_typ of
-        (BltinType _ (Bool _)) -> checkStmt stmt
+        (BltinType _ (Bool _)) -> do
+            case stmt of
+                (BStmt _ _) -> checkStmt stmt
+                _ -> checkStmt $ BStmt pos (Block pos [stmt])
         _ -> throwError ("In line " ++ getLineNumber pos 
                 ++ ":\nIn if statement given condition of wrong type."
                 ++ "Expected type: bool, but got: " ++ getTypeName e_typ)

@@ -52,6 +52,7 @@ executable latc_x86_64
                        IRCreator
                        Compiler
                        LCSE
+                       GCSE
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:

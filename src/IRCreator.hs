@@ -12,21 +12,6 @@ import Common.ErrorPositions
 import Common.Common
 
 
--- TODO
--- structy
--- tablice structow, zeby wiecej pamieci alokowac!!!!!!!!!!!!!
-    -- te funkcje wszytskie quadsowe dla booli jak bedzie if (a[i])
--- undefined w common.hs
-
-
-
-
--- DUZA ZMIANA:    CZY REL NIE POWINIEN ZWRACAC BOOLA ZAWSZE???? -> W TYM REL OPERATION !!!!!!!!!!!!!!!!!!!!!!!!!! w common.hs
--- undefined w common.hs
-    -- typesEquals w common.hs tez jest nie ok, bo porownuje tylko te same
-    -- TODO DODAC DO FUNKCJI TYPOW LIB FUNS
-
-
 
 
 
@@ -41,7 +26,8 @@ data IRReg =
 -- datatype for conditions
 data IRCond =  
     IRLoc IRReg | 
-    IRRel IRRelOp IRReg IRReg deriving Show
+    IRRel IRRelOp IRReg IRReg 
+    deriving (Eq, Ord, Show, Read)
 
 -- arithmetic operations used in IR
 data IRBinOp = 
@@ -50,7 +36,7 @@ data IRBinOp =
 -- relation operations used in IR
 data IRRelOp = 
     IRLTH | IRLE | IRGTH | IRGE | IREQU | IRNE
-    deriving Show
+    deriving (Eq, Ord, Show, Read)
 
 -- Boolean operator
 data BoolOp = 
@@ -75,7 +61,7 @@ data Label =
     CondL IRCond String String | -- block ended by conditional jump
     RetL IRReg | -- block ended by return
     VRetL -- block ended by void return
-    deriving Show
+    deriving (Eq, Ord, Show, Read)
 
 -- string store (string -> string's location)
 type StringStore = M.Map String IRReg
@@ -112,7 +98,8 @@ type IRStore = StateT (StringStore, IRElemsStore, IRBlockStore, FuncTypMap, VarE
 
 -- Function returns the index of given struct's field.
 -- Giving "" iden will return number of all fields
-getFieldIndexHelper :: [StructBody ErrorPos] -> Integer -> Ident -> IRStore (Integer)
+getFieldIndexHelper :: [StructBody ErrorPos] -> Integer -> 
+                    Ident -> IRStore (Integer)
 getFieldIndexHelper [] idx _ = return (idx - 1)
 getFieldIndexHelper ((Attr _ _ iden):rest) idx f_iden =
     if (getName iden == getName f_iden)
@@ -149,7 +136,8 @@ getArrayAtType _ _ = undefined
 
 
 --  Function returns type of given structure's field
-getFieldsTypeHelper :: [StructBody ErrorPos] -> Ident -> StructTypMap -> Type ErrorPos
+getFieldsTypeHelper :: [StructBody ErrorPos] -> Ident -> 
+                        StructTypMap -> Type ErrorPos
 getFieldsTypeHelper [] _ _ = undefined
 getFieldsTypeHelper ((Attr _ typ iden):rest) f_iden structs =
     if (getName iden == getName f_iden)
@@ -168,7 +156,8 @@ getFieldsType s_iden f_iden structs = do
 
 
 -- Function returns type of given expression 
-getExprType :: Expr ErrorPos -> FuncTypMap -> VarEnv -> StructTypMap -> Type ErrorPos
+getExprType :: Expr ErrorPos -> FuncTypMap -> VarEnv -> 
+                StructTypMap -> Type ErrorPos
 getExprType e funcs vars structs = do
     let typ = getType e
     case typ of
@@ -725,7 +714,8 @@ generateStmtIRElems (BStmt _ (Block _ stmts)) = do
     return ()
 generateStmtIRElems (Decl _ typ items) = 
     case typ of
-        BltinType _ (Str _) -> generateDeclIRElemsForStr items
+        BltinType _ (Str _) -> 
+            generateDeclIRElemsForStr items
         typ' -> generateDeclIRElems typ' items
 generateStmtIRElems (Ass _ iden_e e) = do
     generateAssignIRElems iden_e e
@@ -736,7 +726,8 @@ generateStmtIRElems (Incr _ iden) = do
     let el1 = IRVarFromReg (Reg n) var_reg
     let el2 = IROp (Reg (n+1)) IRAdd (Reg n) (Const 1)
     let el3 = IRVarToReg var_reg (Reg (n+1))
-    put (s, (elems ++ [el1] ++ [el2] ++ [el3], n + 2), b, funcs, vars, structs)
+    put (s, (elems ++ [el1] ++ [el2] ++ [el3], n + 2), b, 
+        funcs, vars, structs)
     return ()
 generateStmtIRElems (Decr _ iden) = do
     (s, (elems, n), b, funcs, vars, structs) <- get
@@ -745,7 +736,8 @@ generateStmtIRElems (Decr _ iden) = do
     let el1 = IRVarFromReg (Reg n) var_reg
     let el2 = IROp (Reg (n+1)) IRSub (Reg n) (Const 1) 
     let el3 = IRVarToReg var_reg (Reg (n+1))
-    put (s, (elems ++ [el1] ++ [el2] ++ [el3], n + 2), b, funcs, vars, structs)
+    put (s, (elems ++ [el1] ++ [el2] ++ [el3], n + 2), b, 
+        funcs, vars, structs)
     return ()
 generateStmtIRElems (Ret _ e) = do
     e_reg <- generateExprIRElems e
@@ -774,18 +766,18 @@ generateStmtIRElems (CondElse _ e stmt1 stmt2) = do
         L ("lebel" ++ show l)), f''', v''', str''')
     -- generating block for then
     generateStmtIRElems stmt1
-    (s', (elems', n'), (blocks', l', lebel1'), f', v', structs') <- get
+    (s', (elems', n'), (blocks', l', lebel1'), f', _, structs') <- get
     let b2 = (lebel1', elems',
             L ("lebel" ++ show (l+2)))
     put (s', ([], n'), (blocks' ++ [b2], l', 
-        L ("lebel" ++ show (l + 1))), f', v', structs')
+        L ("lebel" ++ show (l + 1))), f', v''', structs')
     -- generating block for else
     generateStmtIRElems stmt2
     (s'', (elems'', n''), (blocks'', l'', lebel1''), 
-        f'', v'', str'') <- get
+        f'', _, str'') <- get
     let b3 = (lebel1'', elems'', NoJump)
     put (s'', ([], n''), (blocks'' ++ [b3], l'', 
-        L ("lebel" ++ show (l + 2))), f'', v'', str'')
+        L ("lebel" ++ show (l + 2))), f'', v''', str'')
     return ()
 generateStmtIRElems (Cond _ e stmt) = do
     (s, ir_e, (blocks, l, lebel1), f, v, structs) <- get
@@ -801,10 +793,10 @@ generateStmtIRElems (Cond _ e stmt) = do
     generateStmtIRElems stmt
     -- generating block for statement's instructions
     (s'', (elems'', n''), (blocks'', l'', lebel1''), 
-        f'', v'', str'') <- get
+        f'', _, str'') <- get
     let b = (lebel1'', elems'', L ("lebel" ++ show (l+1)))
     put (s'', ([], n''), (blocks'' ++ [b], l'', 
-        L ("lebel" ++ show (l+1))), f'', v'', str'')
+        L ("lebel" ++ show (l+1))), f'', v', str'')
     return ()
 generateStmtIRElems (While _ e stmt) =  do
     -- l - label for while body
@@ -818,10 +810,10 @@ generateStmtIRElems (While _ e stmt) =  do
         L ("lebel" ++ show l)), f, v, structs)
     -- generating block for while body
     generateStmtIRElems stmt
-    (s', (elems', n'), (blocks', l', lebel1'), f', v', str') <- get
+    (s', (elems', n'), (blocks', l', lebel1'), f', _, str') <- get
     let b2 = (lebel1', elems', NoJump)
     put (s', ([], n'), (blocks' ++ [b2], l', 
-        L ("lebel" ++ show (l + 1))), f', v', str')
+        L ("lebel" ++ show (l + 1))), f', v, str')
     -- generating blocks for while condidtion
     cond_blocks <- generateBoolExprIRElems e 
                 ("lebel" ++ show l) ("lebel" ++ show (l+2))

@@ -1,0 +1,51 @@
+
+int main () {
+  int [] h = new int [5];
+  int a, b, c, d, e, f, g;
+  a = 4;
+  b = a + 5; // add
+  c = a + 5; 
+  d = a + 5; 
+  e = a * 4; // imul
+  f = a + 5;
+  a = 1;
+  e = a * 4; // imul
+  {
+	  g = a + 5;
+	  h[a * 4] = 3;
+          a = 0;
+          h[a * 4] = 2; // imul
+  }
+
+  if (a == 0)
+      //printInt(2);
+      a = 1;
+  else
+      //printInt(3);
+      a = 1;
+
+  h[a * 4] = 4; // nie ma imul, bo to samo przypisanie w ifie, a e = a*4 już liczyło a *4 dla a = 1
+
+
+
+  if (a == 0)
+      //printInt(2);
+      a = 0;
+  else
+      //printInt(3);
+      a = 1;
+
+  h[a * 4] = 4; // imul, bo różne przypisania w ifie, nie wiadomo, która wartość będzie
+
+  printInt(h[4]); // 4
+  printInt(a); // 1
+  printInt(b);  // 9
+  printInt(c);  // 9
+  printInt(d);  // 9
+  printInt(e);  // 4
+  printInt(f);  // 9
+  printInt(g);  // 6
+
+  return 0 ;
+}
+ 

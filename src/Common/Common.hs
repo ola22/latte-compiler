@@ -38,7 +38,8 @@ getTypeName (BltinType _ typ) =
 getTypeName (Fun _ _ _) = "function"
 getTypeName (ArrType _ typ) =
     case typ of
-        (BuiltinArr pos b_typ) -> "array of " ++ getTypeName (BltinType pos b_typ)
+        (BuiltinArr pos b_typ) -> "array of " 
+            ++ getTypeName (BltinType pos b_typ)
         (UserArr _ iden) -> "array of " ++ getName iden
 getTypeName (UserType _ iden) = getName iden
 
